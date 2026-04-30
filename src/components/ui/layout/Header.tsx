@@ -1,6 +1,7 @@
 export function Header() {
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b bg-white px-6">
+   
+    <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-core-border bg-core-surface">
       <div>
         <p className="text-sm text-gray-500">Workspace</p>
         <h2 className="font-semibold">CoreOps Studio</h2>

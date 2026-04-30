@@ -3,7 +3,7 @@ import { dashboardNav } from "@/config/dashboard-nav";
 
 export function Sidebar() {
   return (
-    <aside className="hidden min-h-screen w-64 border-r bg-white px-4 py-6 lg:block">
+    <aside className="hidden min-h-screen w-64 border-r border-core-border bg-core-surface px-4 py-6 lg:block">
       <div className="mb-8">
         <h1 className="text-xl font-bold tracking-tight">CoreOps</h1>
         <p className="text-sm text-gray-500">Agency Operations</p>
