@@ -31,3 +31,29 @@ export async function createProjectForClient(data: {
     },
   });
 }
+
+export async function getProjectById(id: string) {
+  const workspaceId = await getCurrentWorkspaceId();
+
+  return prisma.project.findFirst({
+    where: {
+      id,
+      client: {
+        workspaceId,
+      },
+    },
+    include: {
+      client: true,
+      tasks: {
+        orderBy: {
+          createdAt: "desc",
+        },
+      },
+      invoices: {
+        orderBy: {
+          createdAt: "desc",
+        },
+      },
+    },
+  });
+}
