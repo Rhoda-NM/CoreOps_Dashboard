@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound} from "next/navigation";
-import { ArrowLeft, BriefcaseBusiness, Mail, Phone, Receipt } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, BriefcaseBusiness, Mail, Phone, Receipt } from "lucide-react";
 
 import { CreateProjectForm } from "@/features/projects/components/CreateProjectForm";
+import { CreateInvoiceForm } from "@/features/invoices/components/CreateInvoiceForm";
 import { getClientById } from "@/server/services/clients.service";
 import { PageHeader } from "@/components/ui/shared/PageHeader";
 import { Badge } from "@/components/ui/Badge";
@@ -122,8 +123,9 @@ export default async function ClientDetailsPage({
                     </CardContent>
                 </Card>
             </section>
-            <section>
+            <section className="grid gap-4 lg:grid-cols-2">
                 <CreateProjectForm clientId={client.id} />
+                <CreateInvoiceForm clientId={client.id} />
             </section>
             
             <section className="space-y-4">
@@ -131,39 +133,46 @@ export default async function ClientDetailsPage({
                     <CardHeader>
                         <CardTitle>Projects</CardTitle>
                     </CardHeader>
-                    
+
                     <CardContent>
                         {client.projects.length === 0 ? (
-                            <EmptyState
-                                title="No projects yet"
-                                icon={<BriefcaseBusiness className="h-6 w-6" />}
-                                description="Create a project for this client to start tracking work"
-                            />
+                        <EmptyState
+                            icon={<BriefcaseBusiness className="h-6 w-6" />}
+                            title="No projects yet"
+                            description="Create a project for this client to start tracking work."
+                        />
                         ) : (
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Name</TableHead>
-                                        <TableHead>Status</TableHead>
-                                    </TableRow>
-                                </TableHeader>
+                        <div className="space-y-3">
+                            {client.projects.map((project) => (
+                            <Link
+                                key={project.id}
+                                href={`/projects/${project.id}`}
+                                className="group block rounded-2xl border border-core-border bg-core-surface p-4 transition hover:border-core-primary/60 hover:bg-core-card"
+                            >
+                                <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <p className="font-medium text-core-text transition group-hover:text-indigo-300">
+                                    {project.name}
+                                    </p>
 
-                                <TableBody>
-                                    {client.projects.map((project) => (
-                                        <TableRow key={project.id}>
-                                        <TableCell className="font-medium text-core-text">
-                                            {project.name}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="info">{project.status}</Badge>
-                                        </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                                    <p className="mt-1 text-sm text-core-text-secondary">
+                                    {project.description || "No description provided."}
+                                    </p>
+
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                    <Badge variant="info">{project.status}</Badge>
+                                    <Badge variant="muted">{project.tasks.length} tasks</Badge>
+                                    </div>
+                                </div>
+
+                                <ArrowUpRight className="h-4 w-4 text-core-muted transition group-hover:text-indigo-300" />
+                                </div>
+                            </Link>
+                            ))}
+                        </div>
                         )}
                     </CardContent>
-                </Card>
+                    </Card>
 
                 <Card>
                     <CardHeader>
@@ -197,7 +206,20 @@ export default async function ClientDetailsPage({
                                                 ${invoice.amount.toString()}
                                             </TableCell>
                                             <TableCell>
-                                                <Badge variant="info">{invoice.status}</Badge>
+                                                
+                                                <Badge
+                                                    variant={
+                                                        invoice.status === "PAID"
+                                                        ? "success"
+                                                        : invoice.status === "OVERDUE"
+                                                        ? "danger"
+                                                        : invoice.status === "SENT"
+                                                        ? "info"
+                                                        : "warning"
+                                                    }
+                                                    >
+                                                    {invoice.status}
+                                                </Badge>
                                             </TableCell>
                                         </TableRow>
                                     ))}

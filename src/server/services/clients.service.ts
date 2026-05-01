@@ -37,11 +37,15 @@ export async function getClientById(id: string) {
         orderBy: {
           createdAt: "desc",
         },
-      },
+        include: {
+          tasks: true,
+          },
+       },
       invoices: {
         orderBy: {
           createdAt: "desc",
         },
+        
       },
     },
   });
