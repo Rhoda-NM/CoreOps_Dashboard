@@ -1,6 +1,83 @@
 import { getClients } from "@/server/services/clients.service";
 import { ClientForm } from "@/features/clients/components/ClientForm";
 import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/shared/EmptyState";
+import { Users } from "lucide-react";
+import { ClickableRow } from "@/components/ui/ClickableRow";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/Table";
+
+export default async function ClientsPage() {
+  const clients = await getClients();
+
+  return (
+    <main className="space-y-10">
+      <div>
+        <h1 className="text-3xl font-semibold tracking-tight text-core-text">
+          Clients
+        </h1>
+        <p className="mt-1 text-sm text-core-text-secondary">
+          Manage your agency clients and business relationships.
+        </p>
+      </div>
+
+      <ClientForm />
+
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold text-core-text">
+          Client Records
+        </h2>
+
+        {clients.length === 0 ? (
+          <EmptyState
+            icon={<Users className="h-6 w-6" />}
+            title="No clients yet"
+            description="Add your first client to start managing your agency operations."
+          />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Company</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+
+            <TableBody>
+              {clients.map((client) => (
+                <ClickableRow
+                  key={client.id}
+                  href={`/clients/${client.id}`}
+                >
+                  <TableCell className="font-medium text-core-text">
+                    {client.name}
+                  </TableCell>
+                  <TableCell>{client.company || "—"}</TableCell>
+                  <TableCell>{client.email || "—"}</TableCell>
+                  <TableCell>
+                    <Badge variant="success">{client.status}</Badge>
+                  </TableCell>
+                </ClickableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </section>
+    </main>
+  );
+}
+
+{/*import { getClients } from "@/server/services/clients.service";
+import { ClientForm } from "@/features/clients/components/ClientForm";
+import { Badge } from "@/components/ui/Badge";
 import {
   Table,
   TableBody,
@@ -25,7 +102,7 @@ export default async function ClientsPage() {
       <PageHeader
         title="Clients"
         description="Manage your agency clients and business relationships."
-        action={<Button>Add Client</Button>}
+        
       />
 
       <section>
@@ -40,7 +117,6 @@ export default async function ClientsPage() {
             icon={<Users className="h-6 w-6" />}
             title="No clients yet"
             description="Add your first client to start managing your agency operations."
-            action={<Button>Add Client</Button>}
           />
         ) : (
           <Table>
@@ -76,4 +152,4 @@ export default async function ClientsPage() {
       </section>
     </main>
   );
-}
+}*/}

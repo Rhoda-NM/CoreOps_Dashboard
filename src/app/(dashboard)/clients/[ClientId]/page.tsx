@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/shared/EmptyState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { ClientActionPanel } from "@/features/clients/components/ClientActionPanel";
 import {
     Table,
     TableBody,
@@ -123,10 +124,17 @@ export default async function ClientDetailsPage({
                     </CardContent>
                 </Card>
             </section>
-            <section className="grid gap-4 lg:grid-cols-2">
+            {/*<section className="grid gap-4 lg:grid-cols-2">
                 <CreateProjectForm clientId={client.id} />
                 <CreateInvoiceForm clientId={client.id} />
             </section>
+            <section className="space-y-4">
+                <div className="flex flex-wrap gap-3">
+                    <CreateProjectForm clientId={client.id} />
+                    <CreateInvoiceForm clientId={client.id} />
+                </div>
+            </section>*/}
+            <ClientActionPanel clientId={client.id} />
             
             <section className="space-y-4">
                 <Card>
