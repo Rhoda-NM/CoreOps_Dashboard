@@ -29,7 +29,12 @@ type ClientDetailsPageProps = {
 export default async function ClientDetailsPage({ 
     params,
  }: ClientDetailsPageProps) {
-    const client = await getClientById(params.clientId);
+    
+    const { clientId } = await params;
+
+    console.log("Client ID from route:", clientId);
+
+    const client = await getClientById(clientId);
 
     if (!client) {
         notFound();

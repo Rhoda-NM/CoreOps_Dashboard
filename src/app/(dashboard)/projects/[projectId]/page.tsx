@@ -15,6 +15,8 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { CreateTaskPanel } from "@/features/tasks/components/Create TaskPanel";
+import { BackButton } from "@/components/ui/shared/BakButtton";
+import { TaskStatusSelect } from "@/features/tasks/components/TaskStatusSelect";
 import {
   Table,
   TableBody,
@@ -33,7 +35,11 @@ type ProjectDetailPageProps = {
 export default async function ProjectDetailPage({
   params,
 }: ProjectDetailPageProps) {
-  const project = await getProjectById(params.projectId);
+  const { projectId } = await params;
+
+  console.log("Project ID from route:", projectId);
+
+  const project = await getProjectById(projectId);
 
   if (!project) {
     notFound();
@@ -50,13 +56,7 @@ export default async function ProjectDetailPage({
 
   return (
     <main className="space-y-8">
-      <Link
-        href={`/clients/${project.clientId}`}
-        className="inline-flex items-center gap-2 text-sm text-core-text-secondary transition hover:text-core-text"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to client
-      </Link>
+      <BackButton label="Back" fallbackHref="/projects" />
 
       <PageHeader
         title={project.name}
@@ -167,8 +167,12 @@ export default async function ProjectDetailPage({
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="info">{task.status}</Badge>
-                      </TableCell>
+                            <TaskStatusSelect
+                                projectId={project.id}
+                                taskId={task.id}
+                                currentStatus={task.status}
+                            />
+                        </TableCell>
                       <TableCell>
                         {task.dueDate
                           ? new Date(task.dueDate).toLocaleDateString()

@@ -1,6 +1,25 @@
 import { prisma } from "@/server/db/prisma";
 import { getCurrentWorkspaceId } from "@/server/auth/get-current-workspace";
 
+export async function getInvoices() {
+  const workspaceId = await getCurrentWorkspaceId();
+
+  return prisma.invoice.findMany({
+    where: {
+      client: {
+        workspaceId,
+      },
+    },
+    include: {
+      client: true,
+      project: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+}
+
 export async function createInvoiceForClient(data: {
   clientId: string;
   invoiceNo: string;
