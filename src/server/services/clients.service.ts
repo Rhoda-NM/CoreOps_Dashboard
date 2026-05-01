@@ -10,8 +10,39 @@ export async function getClients() {
     where: {
       workspaceId,
     },
+    select: {
+      id: true,
+      name: true,
+      company: true,
+      email: true,
+      status: true,
+      createdAt: true,
+    },
     orderBy: {
       createdAt: "desc",
+    },
+  });
+}
+
+export async function getClientById(id: string) {
+  const workspaceId = await getCurrentWorkspaceId();
+
+  return prisma.client.findFirst({
+    where: {
+      id,
+      workspaceId,
+    },
+    include: {
+      projects: {
+        orderBy: {
+          createdAt: "desc",
+        },
+      },
+      invoices: {
+        orderBy: {
+          createdAt: "desc",
+        },
+      },
     },
   });
 }

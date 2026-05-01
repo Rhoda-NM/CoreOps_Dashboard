@@ -12,7 +12,10 @@ import {
 import { PageHeader } from "@/components/ui/shared/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/shared/EmptyState";
+import { ClickableRow } from "@/components/ui/ClickableRow";
 import { Users } from "lucide-react";
+import Link from "next/link";
+import { LinkIcon } from "lucide-react";
 
 export default async function ClientsPage() {
   const clients = await getClients();
@@ -52,16 +55,20 @@ export default async function ClientsPage() {
 
             <TableBody>
               {clients.map((client) => (
-                <TableRow key={client.id}>
-                  <TableCell className="font-medium text-core-text">
-                    {client.name}
+                <ClickableRow
+                  key={client.id}
+                  href={`/clients/${client.id}`}
+                >
+                  <TableCell className="font-medium text-core-text"> 
+                        {client.name}
                   </TableCell>
+
                   <TableCell>{client.company || "—"}</TableCell>
                   <TableCell>{client.email || "—"}</TableCell>
                   <TableCell>
                     <Badge variant="success">{client.status}</Badge>
                   </TableCell>
-                </TableRow>
+                </ClickableRow>
               ))}
             </TableBody>
           </Table>
