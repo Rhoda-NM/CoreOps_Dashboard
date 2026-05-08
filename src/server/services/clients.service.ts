@@ -66,3 +66,38 @@ export async function createClient(data: {
     },
   });
 }
+
+export async function updateClient(
+  id: string,
+  data: {
+    name: string;
+    company?: string;
+    email?: string;
+    phone?: string;
+  }
+) {
+  const workspaceId = await getCurrentWorkspaceId();
+
+  const client = await prisma.client.findFirst({
+    where: {
+      id,
+      workspaceId,
+    },
+  });
+
+  if (!client) {
+    throw new Error("Client not found");
+  }
+
+  return prisma.client.update({
+    where: {
+      id,
+    },
+    data: {
+      name: data.name,
+      company: data.company || null,
+      email: data.email || null,
+      phone: data.phone || null,
+    },
+  });
+}

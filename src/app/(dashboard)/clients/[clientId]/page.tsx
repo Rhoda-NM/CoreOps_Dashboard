@@ -32,8 +32,6 @@ export default async function ClientDetailsPage({
     
     const { clientId } = await params;
 
-    console.log("Client ID from route:", clientId);
-
     const client = await getClientById(clientId);
 
     if (!client) {
@@ -57,7 +55,14 @@ export default async function ClientDetailsPage({
                         ? `${client.company} client workspace overview.`
                         : "Client workspace overview."
                     }
-                action={<Button variant="secondary">Edit Client</Button>}
+                action={
+                    <Link
+                        href={`/clients/${client.id}/edit`}
+                        className="inline-flex items-center justify-center rounded-lg border border-core-border bg-core-card px-4 py-2 text-sm font-medium text-core-text transition hover:bg-core-surface"
+                    >
+                        Edit Client
+                    </Link>
+                    }
             />
 
             <section className="grid gap-4 lg:grid-cols-3">

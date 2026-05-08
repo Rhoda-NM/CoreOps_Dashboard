@@ -7,4 +7,9 @@ export const projectSchema = z.object({
   budget: z.string().optional(),
 });
 
+export const updateProjectSchema = projectSchema.extend({
+  status: z.enum(["ACTIVE", "COMPLETED", "PAUSED", "CANCELLED"]),
+});
+
 export type ProjectFormValues = z.infer<typeof projectSchema>;
+export type UpdateProjectFormValues = z.infer<typeof updateProjectSchema>;

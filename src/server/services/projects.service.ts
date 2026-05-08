@@ -77,3 +77,42 @@ export async function getProjectById(id: string) {
     },
   });
 }
+
+export async function updateProject(
+  id: string,
+  data: {
+    name: string;
+    description?: string;
+    status: "ACTIVE" | "COMPLETED" | "PAUSED" | "CANCELLED";
+    deadline?: string;
+    budget?: string;
+  }
+) {
+  const workspaceId = await getCurrentWorkspaceId();
+
+  const project = await prisma.project.findFirst({
+    where: {
+      id,
+      client: {
+        workspaceId,
+      },
+    },
+  });
+
+  if (!project) {
+    throw new Error("Project not found");
+  }
+
+  return prisma.project.update({
+    where: {
+      id,
+    },
+    data: {
+      name: data.name,
+      description: data.description || null,
+      status: data.status,
+      deadline: data.deadline ? new Date(data.deadline) : null,
+      budget: data.budget ? data.budget : null,
+    },
+  });
+}

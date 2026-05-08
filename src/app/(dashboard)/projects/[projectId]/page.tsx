@@ -64,7 +64,14 @@ export default async function ProjectDetailPage({
           project.description ||
           `Project workspace for ${project.client.name}.`
         }
-        action={<Button variant="secondary">Edit Project</Button>}
+        action={
+          <Link
+            href={`/projects/${project.id}/edit`}
+            className="inline-flex items-center justify-center rounded-lg border border-core-border bg-core-card px-4 py-2 text-sm font-medium text-core-text transition hover:bg-core-surface"
+          >
+            Edit Project
+          </Link>
+        }
       />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
