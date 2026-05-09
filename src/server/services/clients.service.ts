@@ -3,20 +3,42 @@
 import { prisma } from "@/server/db/prisma";
 import { getCurrentWorkspaceId } from "@/server/auth/get-current-workspace";
 
-export async function getClients() {
+export async function getClients(filters?: {
+  query?: string;
+  status?: "ACTIVE" | "ARCHIVED" | "ALL";
+}) {
   const workspaceId = await getCurrentWorkspaceId();
 
   return prisma.client.findMany({
     where: {
       workspaceId,
-    },
-    select: {
-      id: true,
-      name: true,
-      company: true,
-      email: true,
-      status: true,
-      createdAt: true,
+      ...(filters?.status && filters.status !== "ALL"
+        ? { status: filters.status }
+        : {}),
+      ...(filters?.query
+        ? {
+            OR: [
+              {
+                name: {
+                  contains: filters.query,
+                  mode: "insensitive",
+                },
+              },
+              {
+                company: {
+                  contains: filters.query,
+                  mode: "insensitive",
+                },
+              },
+              {
+                email: {
+                  contains: filters.query,
+                  mode: "insensitive",
+                },
+              },
+            ],
+          }
+        : {}),
     },
     orderBy: {
       createdAt: "desc",
@@ -98,6 +120,30 @@ export async function updateClient(
       company: data.company || null,
       email: data.email || null,
       phone: data.phone || null,
+    },
+  });
+}
+
+export async function archiveClient(id: string) {
+  const workspaceId = await getCurrentWorkspaceId();
+
+  const client = await prisma.client.findFirst({
+    where: {
+      id,
+      workspaceId,
+    },
+  });
+
+  if (!client) {
+    throw new Error("Client not found");
+  }
+
+  return prisma.client.update({
+    where: {
+      id,
+    },
+    data: {
+      status: "ARCHIVED",
     },
   });
 }

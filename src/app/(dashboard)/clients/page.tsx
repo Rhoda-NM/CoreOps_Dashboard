@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/shared/EmptyState";
 import { Users } from "lucide-react";
 import { ClickableRow } from "@/components/ui/ClickableRow";
+import { ClientFilters } from "@/features/clients/components/ClientFilters";
 import {
   Table,
   TableBody,
@@ -13,8 +14,26 @@ import {
   TableRow,
 } from "@/components/ui/Table";
 
-export default async function ClientsPage() {
-  const clients = await getClients();
+type ClientsPageProps = {
+  searchParams: Promise<{
+    query?: string;
+    status?: string;
+  }>;
+};
+
+export default async function ClientsPage({ searchParams }: ClientsPageProps) {
+  const params = await searchParams;
+
+  const status =
+    params.status === "ARCHIVED" || params.status === "ALL"
+      ? params.status
+      : "ACTIVE";
+
+  const clients = await getClients({
+    query: params.query,
+    status,
+  });
+  // existing return...
 
   return (
     <main className="space-y-10">
@@ -28,11 +47,11 @@ export default async function ClientsPage() {
       </div>
 
       <ClientForm />
-
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold text-core-text">
-          Client Records
-        </h2>
+        <div className="flex flex-col gap-4">
+          <h2 className="text-lg font-semibold text-core-text">Client Records</h2>
+          <ClientFilters />
+        </div>
 
         {clients.length === 0 ? (
           <EmptyState
@@ -63,7 +82,9 @@ export default async function ClientsPage() {
                   <TableCell>{client.company || "—"}</TableCell>
                   <TableCell>{client.email || "—"}</TableCell>
                   <TableCell>
-                    <Badge variant="success">{client.status}</Badge>
+                    <Badge variant={client.status === "ARCHIVED" ? "muted" : "success"}>
+                      {client.status}
+                    </Badge>
                   </TableCell>
                 </ClickableRow>
               ))}

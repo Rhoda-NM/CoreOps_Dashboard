@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/ui/shared/EmptyState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { InvoiceStatusSelect } from "@/features/invoices/components/InvoiceStatusSelect";
 import { ClientActionPanel } from "@/features/clients/components/ClientActionPanel";
+import { ArchiveClientButton } from "@/features/clients/components/ArchiveClientButton";
 import {
     Table,
     TableBody,
@@ -57,12 +58,18 @@ export default async function ClientDetailsPage({
                         : "Client workspace overview."
                     }
                 action={
-                    <Link
+                    <div className="flex flex-wrap gap-3">
+                        <Link
                         href={`/clients/${client.id}/edit`}
                         className="inline-flex items-center justify-center rounded-lg border border-core-border bg-core-card px-4 py-2 text-sm font-medium text-core-text transition hover:bg-core-surface"
-                    >
+                        >
                         Edit Client
-                    </Link>
+                        </Link>
+
+                        {client.status !== "ARCHIVED" && (
+                        <ArchiveClientButton clientId={client.id} />
+                        )}
+                    </div>
                     }
             />
 
