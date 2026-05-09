@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/shared/EmptyState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { InvoiceStatusSelect } from "@/features/invoices/components/InvoiceStatusSelect";
 import { ClientActionPanel } from "@/features/clients/components/ClientActionPanel";
 import {
     Table,
@@ -144,7 +145,14 @@ export default async function ClientDetailsPage({
                     <CreateInvoiceForm clientId={client.id} />
                 </div>
             </section>*/}
-            <ClientActionPanel clientId={client.id} />
+            
+            <ClientActionPanel
+                clientId={client.id}
+                projects={client.projects.map((project) => ({
+                    id: project.id,
+                    name: project.name,
+                }))}
+                />
             
             <section className="space-y-4">
                 <Card>
@@ -224,20 +232,11 @@ export default async function ClientDetailsPage({
                                                 ${invoice.amount.toString()}
                                             </TableCell>
                                             <TableCell>
-                                                
-                                                <Badge
-                                                    variant={
-                                                        invoice.status === "PAID"
-                                                        ? "success"
-                                                        : invoice.status === "OVERDUE"
-                                                        ? "danger"
-                                                        : invoice.status === "SENT"
-                                                        ? "info"
-                                                        : "warning"
-                                                    }
-                                                    >
-                                                    {invoice.status}
-                                                </Badge>
+                                                <InvoiceStatusSelect
+                                                    invoiceId={invoice.id}
+                                                    currentStatus={invoice.status}
+                                                    pathsToRevalidate={[`/clients/${client.id}`]}
+                                                />
                                             </TableCell>
                                         </TableRow>
                                     ))}

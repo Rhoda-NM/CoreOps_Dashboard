@@ -17,6 +17,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { CreateTaskPanel } from "@/features/tasks/components/Create TaskPanel";
 import { BackButton } from "@/components/ui/shared/BakButtton";
 import { TaskStatusSelect } from "@/features/tasks/components/TaskStatusSelect";
+import { InvoiceStatusSelect } from "@/features/invoices/components/InvoiceStatusSelect";
+import { CreateInvoiceForm } from "@/features/invoices/components/CreateInvoiceForm";
 import {
   Table,
   TableBody,
@@ -199,6 +201,16 @@ export default async function ProjectDetailPage({
           </CardHeader>
 
           <CardContent>
+            <CreateInvoiceForm
+              clientId={project.clientId}
+              projects={[
+                {
+                  id: project.id,
+                  name: project.name,
+                },
+              ]}
+              defaultProjectId={project.id}
+            />
             {project.invoices.length === 0 ? (
               <EmptyState
                 icon={<Receipt className="h-6 w-6" />}
@@ -216,19 +228,11 @@ export default async function ProjectDetailPage({
                       <p className="font-medium text-core-text">
                         {invoice.invoiceNo}
                       </p>
-                      <Badge
-                        variant={
-                          invoice.status === "PAID"
-                            ? "success"
-                            : invoice.status === "OVERDUE"
-                            ? "danger"
-                            : invoice.status === "SENT"
-                            ? "info"
-                            : "warning"
-                        }
-                      >
-                        {invoice.status}
-                      </Badge>
+                      <InvoiceStatusSelect
+                        invoiceId={invoice.id}
+                        currentStatus={invoice.status}
+                        pathsToRevalidate={[`/clients/${project.clientId}`]}
+                      />
                     </div>
 
                     <p className="mt-2 text-sm text-core-text-secondary">

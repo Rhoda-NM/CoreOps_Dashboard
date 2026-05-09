@@ -8,7 +8,7 @@ import { updateClient } from "@/server/services/clients.service";
 export async function updateClientAction(
   clientId: string,
   formData: FormData
-) {
+): Promise<void> {
   const rawData = {
     name: formData.get("name"),
     company: formData.get("company"),
@@ -19,10 +19,7 @@ export async function updateClientAction(
   const result = clientSchema.safeParse(rawData);
 
   if (!result.success) {
-    return {
-      success: false,
-      error: "Invalid client data",
-    };
+    throw new Error("Invalid client data");
   }
 
   await updateClient(clientId, {

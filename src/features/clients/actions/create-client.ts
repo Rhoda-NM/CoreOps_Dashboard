@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { clientSchema } from "../schemas/client-schema";
 import { createClient } from "@/server/services/clients.service";
 
-export async function createClientAction(formData: FormData) {
+export async function createClientAction(formData: FormData): Promise<void> {
   const rawData = {
     name: formData.get("name"),
     company: formData.get("company"),
@@ -15,10 +15,7 @@ export async function createClientAction(formData: FormData) {
   const result = clientSchema.safeParse(rawData);
 
   if (!result.success) {
-    return {
-      success: false,
-      error: "Invalid client data",
-    };
+    throw new Error("Invalid client data");
   }
 
   await createClient({
@@ -29,8 +26,5 @@ export async function createClientAction(formData: FormData) {
   });
 
   revalidatePath("/clients");
-
-  return {
-    success: true,
-  };
+  revalidatePath("/dashboard");
 }

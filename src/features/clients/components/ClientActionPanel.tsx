@@ -9,11 +9,20 @@ import { CreateInvoiceForm } from "@/features/invoices/components/CreateInvoiceF
 
 type ActivePanel = "project" | "invoice" | null;
 
-type ClientActionPanelProps = {
-  clientId: string;
+type ProjectOption = {
+  id: string;
+  name: string;
 };
 
-export function ClientActionPanel({ clientId }: ClientActionPanelProps) {
+type ClientActionPanelProps = {
+  clientId: string;
+  projects?: ProjectOption[];
+};
+
+export function ClientActionPanel({
+  clientId,
+  projects = [],
+}: ClientActionPanelProps) {
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
 
   return (
@@ -57,7 +66,11 @@ export function ClientActionPanel({ clientId }: ClientActionPanelProps) {
       )}
 
       {activePanel === "invoice" && (
-        <CreateInvoiceForm clientId={clientId} forceOpen />
+        <CreateInvoiceForm
+          clientId={clientId}
+          projects={projects}
+          forceOpen
+        />
       )}
     </section>
   );

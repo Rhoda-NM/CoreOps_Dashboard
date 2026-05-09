@@ -7,7 +7,7 @@ import { createProjectForClient } from "@/server/services/projects.service";
 export async function createProjectAction(
   clientId: string,
   formData: FormData
-) {
+): Promise<void> {
   const rawData = {
     name: formData.get("name"),
     description: formData.get("description"),
@@ -18,10 +18,7 @@ export async function createProjectAction(
   const result = projectSchema.safeParse(rawData);
 
   if (!result.success) {
-    return {
-      success: false,
-      error: "Invalid project data",
-    };
+    throw new Error("Invalid project data");
   }
 
   await createProjectForClient({
@@ -34,7 +31,4 @@ export async function createProjectAction(
 
   revalidatePath(`/clients/${clientId}`);
 
-  return {
-    success: true,
-  };
 }

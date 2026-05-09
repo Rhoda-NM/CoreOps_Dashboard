@@ -4,6 +4,7 @@ import { Receipt, Users, BriefcaseBusiness, CalendarDays } from "lucide-react";
 import { getInvoices } from "@/server/services/invoices.service";
 import { PageHeader } from "@/components/ui/shared/PageHeader";
 import { EmptyState } from "@/components/ui/shared/EmptyState";
+import { InvoiceStatusSelect } from "@/features/invoices/components/InvoiceStatusSelect";
 import { Badge } from "@/components/ui/Badge";
 import {
   Table,
@@ -114,13 +115,14 @@ export default async function InvoicesPage() {
                 </TableCell>
 
                 <TableCell>KES {Number(invoice.amount).toLocaleString()}</TableCell>
+                
 
                 <TableCell>
-                  <Badge variant={getInvoiceStatusVariant(invoice.status)}>
-                    {invoice.status}
-                  </Badge>
+                  <InvoiceStatusSelect
+                    invoiceId={invoice.id}
+                    currentStatus={invoice.status}
+                  />
                 </TableCell>
-
                 <TableCell>
                   <div className="inline-flex items-center gap-2">
                     <CalendarDays className="h-4 w-4 text-core-muted" />

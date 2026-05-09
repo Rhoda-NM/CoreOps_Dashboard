@@ -8,7 +8,7 @@ import { updateProject } from "@/server/services/projects.service";
 export async function updateProjectAction(
   projectId: string,
   formData: FormData
-) {
+): Promise<void> {
   const rawData = {
     name: formData.get("name"),
     description: formData.get("description"),
@@ -20,10 +20,7 @@ export async function updateProjectAction(
   const result = updateProjectSchema.safeParse(rawData);
 
   if (!result.success) {
-    return {
-      success: false,
-      error: "Invalid project data",
-    };
+    throw new Error("Invalid project data");
   }
 
   await updateProject(projectId, {

@@ -14,13 +14,23 @@ import {
   CardTitle,
 } from "@/components/ui/Card";
 
+type ProjectOption = {
+  id: string;
+  name: string;
+};
+
 type CreateInvoiceFormProps = {
   clientId: string;
+  projects?: ProjectOption[];
+  defaultProjectId?: string;
   forceOpen?: boolean;
 };
 
+
 export function CreateInvoiceForm({
   clientId,
+  projects = [],
+  defaultProjectId,
   forceOpen = false,
 }: CreateInvoiceFormProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -87,6 +97,31 @@ export function CreateInvoiceForm({
               required
             />
           </div>
+          {projects.length > 0 && (
+            <div className="grid gap-2">
+              <label
+                htmlFor="projectId"
+                className="text-sm font-medium text-core-text"
+              >
+                Project
+              </label>
+
+              <select
+                id="projectId"
+                name="projectId"
+                defaultValue={defaultProjectId || ""}
+                className="w-full rounded-lg border border-core-border bg-core-surface px-3 py-2 text-sm text-core-text outline-none transition focus:border-core-primary focus:ring-2 focus:ring-core-primary/30"
+              >
+                <option value="">No specific project</option>
+
+                {projects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <Input
             id="dueDate"

@@ -8,7 +8,7 @@ export async function createTaskAction(
   clientId: string,
   projectId: string,
   formData: FormData
-) {
+): Promise<void> {
   const rawData = {
     title: formData.get("title"),
     description: formData.get("description"),
@@ -19,10 +19,7 @@ export async function createTaskAction(
   const result = taskSchema.safeParse(rawData);
 
   if (!result.success) {
-    return {
-      success: false,
-      error: "Invalid task data",
-    };
+    throw new Error("Invalid task data");
   }
 
   await createTaskForProject({
@@ -34,8 +31,5 @@ export async function createTaskAction(
   });
 
   revalidatePath(`/clients/${clientId}`);
-
-  return {
-    success: true,
-  };
+  revalidatePath(`/projects/${projectId}`);
 }
