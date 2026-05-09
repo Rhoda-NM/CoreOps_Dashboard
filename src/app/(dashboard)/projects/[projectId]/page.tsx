@@ -6,7 +6,9 @@ import {
   CheckSquare,
   Receipt,
   Users,
+  AlertTriangle,
 } from "lucide-react";
+import { isOverdue } from "@/lib/is-overdue";
 
 import { getProjectById } from "@/server/services/projects.service";
 import { PageHeader } from "@/components/ui/shared/PageHeader";
@@ -166,38 +168,28 @@ export default async function ProjectDetailPage({
                 </TableHeader>
 
                 <TableBody>
-                  {project.tasks.map((task) => (
-                    <TableRow key={task.id}>
-                      <TableCell className="font-medium text-core-text">
-                        {task.title}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            task.priority === "URGENT"
-                              ? "danger"
-                              : task.priority === "HIGH"
-                              ? "warning"
-                              : "muted"
-                          }
-                        >
-                          {task.priority}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                            <TaskStatusSelect
-                                projectId={project.id}
-                                taskId={task.id}
-                                currentStatus={task.status}
-                            />
+                  {project.tasks.map((task) => {
+                    const overdue = isOverdue(task.dueDate, task.status);
+
+                    return (
+                      <TableRow key={task.id} className={overdue ? "bg-red-500/5" : ""}>
+                        <TableCell className="font-medium text-core-text">
+                          <div className="flex items-center gap-2">
+                            {overdue && <AlertTriangle className="h-4 w-4 text-red-300" />}
+                            <span>{task.title}</span>
+                          </div>
+
+                          {overdue && (
+                            <p className="mt-1 text-xs text-red-300">
+                              This task is overdue
+                            </p>
+                          )}
                         </TableCell>
-                      <TableCell>
-                        {task.dueDate
-                          ? new Date(task.dueDate).toLocaleDateString()
-                          : "—"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+
+                        {/* keep your other cells */}
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}

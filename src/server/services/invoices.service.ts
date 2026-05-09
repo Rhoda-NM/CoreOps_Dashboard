@@ -1,19 +1,88 @@
 import { prisma } from "@/server/db/prisma";
 import { getCurrentWorkspaceId } from "@/server/auth/get-current-workspace";
 
-export async function getInvoices() {
+export async function getInvoices(filters?: {
+  query?: string;
+  status?: "DRAFT" | "SENT" | "PAID" | "OVERDUE" | "CANCELLED" | "ALL";
+  filter?: "all" | "outstanding" | "overdue";
+}) {
   const workspaceId = await getCurrentWorkspaceId();
+
+  const now = new Date();
 
   return prisma.invoice.findMany({
     where: {
       client: {
         workspaceId,
       },
+
+      ...(filters?.status && filters.status !== "ALL"
+        ? {
+            status: filters.status,
+          }
+        : {}),
+
+      ...(filters?.filter === "outstanding"
+        ? {
+            status: {
+              not: "PAID",
+            },
+          }
+        : {}),
+
+      ...(filters?.filter === "overdue"
+        ? {
+            OR: [
+              {
+                status: "OVERDUE",
+              },
+              {
+                dueDate: {
+                  lt: now,
+                },
+                status: {
+                  notIn: ["PAID", "CANCELLED"],
+                },
+              },
+            ],
+          }
+        : {}),
+
+      ...(filters?.query
+        ? {
+            OR: [
+              {
+                invoiceNo: {
+                  contains: filters.query,
+                  mode: "insensitive",
+                },
+              },
+              {
+                client: {
+                  name: {
+                    contains: filters.query,
+                    mode: "insensitive",
+                  },
+                },
+              },
+              {
+                project: {
+                  name: {
+                    contains: filters.query,
+                    mode: "insensitive",
+                  },
+                },
+              },
+            ],
+          }
+        : {}),
     },
+
     include: {
       client: true,
       project: true,
     },
+
     orderBy: {
       createdAt: "desc",
     },

@@ -1,8 +1,16 @@
 import { prisma } from "@/server/db/prisma";
 import { getCurrentWorkspaceId } from "@/server/auth/get-current-workspace";
 
-export async function getTasks() {
+
+export async function getTasks(filters?: {
+  query?: string;
+  status?: "TODO" | "IN_PROGRESS" | "REVIEW" | "DONE" | "ALL";
+  priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT" | "ALL";
+  filter?: "overdue" | "pending" | "all";
+}) {
   const workspaceId = await getCurrentWorkspaceId();
+
+  const now = new Date();
 
   return prisma.task.findMany({
     where: {
@@ -11,7 +19,76 @@ export async function getTasks() {
           workspaceId,
         },
       },
+
+      ...(filters?.status && filters.status !== "ALL"
+        ? {
+            status: filters.status,
+          }
+        : {}),
+
+      ...(filters?.priority && filters.priority !== "ALL"
+        ? {
+            priority: filters.priority,
+          }
+        : {}),
+
+      ...(filters?.filter === "pending"
+        ? {
+            status: {
+              not: "DONE",
+            },
+          }
+        : {}),
+
+      ...(filters?.filter === "overdue"
+        ? {
+            dueDate: {
+              lt: now,
+            },
+            status: {
+              not: "DONE",
+            },
+          }
+        : {}),
+
+      ...(filters?.query
+        ? {
+            OR: [
+              {
+                title: {
+                  contains: filters.query,
+                  mode: "insensitive",
+                },
+              },
+              {
+                description: {
+                  contains: filters.query,
+                  mode: "insensitive",
+                },
+              },
+              {
+                project: {
+                  name: {
+                    contains: filters.query,
+                    mode: "insensitive",
+                  },
+                },
+              },
+              {
+                project: {
+                  client: {
+                    name: {
+                      contains: filters.query,
+                      mode: "insensitive",
+                    },
+                  },
+                },
+              },
+            ],
+          }
+        : {}),
     },
+
     include: {
       project: {
         include: {
@@ -19,9 +96,15 @@ export async function getTasks() {
         },
       },
     },
-    orderBy: {
-      createdAt: "desc",
-    },
+
+    orderBy: [
+      {
+        dueDate: "asc",
+      },
+      {
+        createdAt: "desc",
+      },
+    ],
   });
 }
 
