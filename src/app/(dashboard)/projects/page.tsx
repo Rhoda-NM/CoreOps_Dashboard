@@ -12,9 +12,31 @@ import { PageHeader } from "@/components/ui/shared/PageHeader";
 import { EmptyState } from "@/components/ui/shared/EmptyState";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardContent } from "@/components/ui/Card";
+import { ProjectFilters } from "@/features/projects/components/ProjectFilters";
+import { ProjectStatusSelect } from "@/features/projects/components/ProjectStatusSelect";
 
-export default async function ProjectsPage() {
-  const projects = await getProjects();
+type ProjectsPageProps = {
+  searchParams: Promise<{
+    query?: string;
+    status?: string;
+  }>;
+};
+
+export default async function ProjectsPage({ searchParams }: ProjectsPageProps) {
+  const params = await searchParams;
+
+  const status =
+    params.status === "ACTIVE" ||
+    params.status === "COMPLETED" ||
+    params.status === "PAUSED" ||
+    params.status === "CANCELLED"
+      ? params.status
+      : "ALL";
+
+  const projects = await getProjects({
+    query: params.query,
+    status,
+  });
 
   return (
     <main className="space-y-8">
@@ -22,6 +44,8 @@ export default async function ProjectsPage() {
         title="Projects"
         description="View and manage all agency projects across clients."
       />
+
+      <ProjectFilters />
 
       {projects.length === 0 ? (
         <EmptyState
@@ -64,7 +88,11 @@ export default async function ProjectsPage() {
                     </div>
 
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <Badge variant="info">{project.status}</Badge>
+                      <ProjectStatusSelect
+                        projectId={project.id}
+                        currentStatus={project.status}
+                        pathsToRevalidate={[`/clients/${project.clientId}`]}
+                      />
                       <Badge variant="muted">{project.tasks.length} tasks</Badge>
                       <Badge variant="muted">{progress}% complete</Badge>
                     </div>

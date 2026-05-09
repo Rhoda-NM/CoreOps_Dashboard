@@ -1,7 +1,10 @@
 import { prisma } from "@/server/db/prisma";
 import { getCurrentWorkspaceId } from "@/server/auth/get-current-workspace";
 
-export async function getProjects() {
+export async function getProjects(filters?: {
+  status?: "ACTIVE" | "COMPLETED" | "PAUSED" | "CANCELLED" | "ALL";
+  query?: string;
+}) {
   const workspaceId = await getCurrentWorkspaceId();
 
   return prisma.project.findMany({
@@ -9,6 +12,35 @@ export async function getProjects() {
       client: {
         workspaceId,
       },
+      ...(filters?.status && filters.status !== "ALL"
+        ? { status: filters.status }
+        : {}),
+      ...(filters?.query
+        ? {
+            OR: [
+              {
+                name: {
+                  contains: filters.query,
+                  mode: "insensitive",
+                },
+              },
+              {
+                description: {
+                  contains: filters.query,
+                  mode: "insensitive",
+                },
+              },
+              {
+                client: {
+                  name: {
+                    contains: filters.query,
+                    mode: "insensitive",
+                  },
+                },
+              },
+            ],
+          }
+        : {}),
     },
     include: {
       client: true,
@@ -113,6 +145,35 @@ export async function updateProject(
       status: data.status,
       deadline: data.deadline ? new Date(data.deadline) : null,
       budget: data.budget ? data.budget : null,
+    },
+  });
+}
+
+export async function updateProjectStatus(data: {
+  projectId: string;
+  status: "ACTIVE" | "COMPLETED" | "PAUSED" | "CANCELLED";
+}) {
+  const workspaceId = await getCurrentWorkspaceId();
+
+  const project = await prisma.project.findFirst({
+    where: {
+      id: data.projectId,
+      client: {
+        workspaceId,
+      },
+    },
+  });
+
+  if (!project) {
+    throw new Error("Project not found");
+  }
+
+  return prisma.project.update({
+    where: {
+      id: data.projectId,
+    },
+    data: {
+      status: data.status,
     },
   });
 }

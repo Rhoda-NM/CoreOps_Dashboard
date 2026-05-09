@@ -19,6 +19,7 @@ import { BackButton } from "@/components/ui/shared/BakButtton";
 import { TaskStatusSelect } from "@/features/tasks/components/TaskStatusSelect";
 import { InvoiceStatusSelect } from "@/features/invoices/components/InvoiceStatusSelect";
 import { CreateInvoiceForm } from "@/features/invoices/components/CreateInvoiceForm";
+import { ProjectStatusSelect } from "@/features/projects/components/ProjectStatusSelect";
 import {
   Table,
   TableBody,
@@ -96,7 +97,15 @@ export default async function ProjectDetailPage({
               <CheckSquare className="h-4 w-4 text-core-muted" />
             </div>
             <div className="mt-3">
-              <Badge variant="info">{project.status}</Badge>
+            
+              <ProjectStatusSelect
+                projectId={project.id}
+                currentStatus={project.status}
+                pathsToRevalidate={[
+                  `/projects/${project.id}`,
+                  `/clients/${project.clientId}`,
+                ]}
+              />
             </div>
           </CardContent>
         </Card>
