@@ -209,6 +209,7 @@ src/
 
   lib/
 
+```
 
 ```md
 ## Architectural Principles
@@ -234,6 +235,7 @@ User
           → Projects
               → Tasks
           → Invoices
+```
 
 ```md
 ## Workspace Scope
@@ -242,7 +244,7 @@ The MVP currently uses a seeded development user:
 
 ```txt
 rhoda@coreops.dev
-
+```
 
 ```md
 ## UI System
@@ -330,7 +332,7 @@ npm run dev
 ### Build for production:
 
 npm run build
-
+```
 ## Phase 2 Roadmap
 
 Potential next features include:
