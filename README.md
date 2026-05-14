@@ -237,7 +237,7 @@ User
           → Invoices
 ```
 
-```md
+
 ## Workspace Scope
 
 The MVP currently uses a seeded development user:
@@ -246,7 +246,6 @@ The MVP currently uses a seeded development user:
 rhoda@coreops.dev
 ```
 
-```md
 ## UI System
 
 CoreOps uses a small custom design system with reusable components:
