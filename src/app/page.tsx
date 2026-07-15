@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { Show, UserButton } from "@clerk/nextjs";
 import {
   BriefcaseBusiness,
   Users,
@@ -16,7 +17,6 @@ import {
   TrendingUp,
   Layers,
   ChevronRight,
-  Mail,
   Check,
 } from "lucide-react";
 
@@ -84,22 +84,7 @@ const featureCards = [
 
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [email, setEmail] = useState("");
-  const [isSubmitted, setIsSubmitted] = useState(false);
   const [activeHotspot, setActiveHotspot] = useState<Hotspot>(null);
-
-  function handleSubscribe(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!email.trim()) return;
-
-    setIsSubmitted(true);
-    setEmail("");
-
-    setTimeout(() => {
-      setIsSubmitted(false);
-    }, 5000);
-  }
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#0B101D] font-sans text-slate-100 selection:bg-blue-600 selection:text-white">
@@ -151,13 +136,33 @@ export default function LandingPage() {
             })}
           </nav>
 
-          <div className="hidden items-center gap-4 md:flex">
-            <Link
-              href="/demo"
-              className="inline-flex h-10 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition-all hover:scale-[1.02] hover:from-blue-500 hover:to-indigo-500"
-            >
-              View Demo
-            </Link>
+          <div className="hidden items-center gap-3 md:flex">
+            <Show when="signed-out">
+              <Link
+                href="/sign-in"
+                className="text-sm font-medium text-slate-300 transition-colors hover:text-white"
+              >
+                Sign in
+              </Link>
+
+              <Link
+                href="/sign-up"
+                className="inline-flex h-10 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition-all hover:scale-[1.02] hover:from-blue-500 hover:to-indigo-500"
+              >
+                Start Free
+              </Link>
+            </Show>
+
+            <Show when="signed-in">
+              <Link
+                href="/dashboard"
+                className="inline-flex h-10 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition-all hover:scale-[1.02] hover:from-blue-500 hover:to-indigo-500"
+              >
+                Open Dashboard
+              </Link>
+
+              <UserButton />
+            </Show>
           </div>
 
           <button
@@ -216,13 +221,41 @@ export default function LandingPage() {
             </nav>
 
             <div className="mt-6 border-t border-[#232D42] pt-4">
-              <Link
-                href="/demo"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex h-11 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-sm font-semibold text-white shadow-lg shadow-blue-500/20"
-              >
-                View Demo
-              </Link>
+              <Show when="signed-out">
+                <div className="flex flex-col gap-3">
+                  <Link
+                    href="/sign-in"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex h-11 items-center justify-center rounded-xl border border-[#232D42] bg-[#0B101D] text-sm font-semibold text-slate-200"
+                  >
+                    Sign in
+                  </Link>
+
+                  <Link
+                    href="/sign-up"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex h-11 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-sm font-semibold text-white shadow-lg shadow-blue-500/20"
+                  >
+                    Start Free
+                  </Link>
+                </div>
+              </Show>
+
+              <Show when="signed-in">
+                <div className="flex flex-col gap-3">
+                  <Link
+                    href="/dashboard"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex h-11 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-sm font-semibold text-white shadow-lg shadow-blue-500/20"
+                  >
+                    Open Dashboard
+                  </Link>
+
+                  <div className="flex justify-center pt-2">
+                    <UserButton />
+                  </div>
+                </div>
+              </Show>
             </div>
           </div>
         )}
@@ -250,20 +283,39 @@ export default function LandingPage() {
             </p>
 
             <div className="mt-10 flex w-full flex-col items-center gap-4 sm:w-auto sm:flex-row">
-              <Link
-                href="/demo"
-                className="inline-flex h-14 w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-8 text-base font-bold text-white shadow-xl shadow-blue-500/25 transition-all hover:scale-[1.02] hover:from-blue-500 hover:to-indigo-500 active:scale-[0.98] sm:w-auto"
-              >
-                View Demo
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Link>
+              <Show when="signed-out">
+                <Link
+                  href="/sign-up"
+                  className="inline-flex h-14 w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-8 text-base font-bold text-white shadow-xl shadow-blue-500/25 transition-all hover:scale-[1.02] hover:from-blue-500 hover:to-indigo-500 active:scale-[0.98] sm:w-auto"
+                >
+                  Start your workspace
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
 
-              <a
-                href="#early-access"
-                className="inline-flex h-14 w-full items-center justify-center rounded-xl border border-[#232D42] bg-[#161C2A]/70 px-8 text-base font-semibold text-slate-200 transition-all hover:bg-[#232D42] hover:text-white active:scale-[0.98] sm:w-auto"
-              >
-                Join Early Access
-              </a>
+                <Link
+                  href="/demo"
+                  className="inline-flex h-14 w-full items-center justify-center rounded-xl border border-[#232D42] bg-[#161C2A]/70 px-8 text-base font-semibold text-slate-200 transition-all hover:bg-[#232D42] hover:text-white active:scale-[0.98] sm:w-auto"
+                >
+                  View Demo
+                </Link>
+              </Show>
+
+              <Show when="signed-in">
+                <Link
+                  href="/dashboard"
+                  className="inline-flex h-14 w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-8 text-base font-bold text-white shadow-xl shadow-blue-500/25 transition-all hover:scale-[1.02] hover:from-blue-500 hover:to-indigo-500 active:scale-[0.98] sm:w-auto"
+                >
+                  Open Dashboard
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+
+                <Link
+                  href="/demo"
+                  className="inline-flex h-14 w-full items-center justify-center rounded-xl border border-[#232D42] bg-[#161C2A]/70 px-8 text-base font-semibold text-slate-200 transition-all hover:bg-[#232D42] hover:text-white active:scale-[0.98] sm:w-auto"
+                >
+                  View Demo
+                </Link>
+              </Show>
             </div>
 
             <div className="mt-16 grid w-full max-w-3xl grid-cols-2 gap-8 border-t border-[#232D42]/60 pt-8 text-sm text-slate-400 md:grid-cols-3">
@@ -669,62 +721,49 @@ export default function LandingPage() {
               </h2>
 
               <p className="mt-6 text-sm leading-relaxed text-slate-300 md:text-base">
-                Join early access to test CoreOps, share feedback, and help
-                shape the next version for freelancers and small digital
-                agencies.
+                Create your CoreOps workspace, add your clients, organize projects,
+                track tasks, and keep invoices visible from one focused command center.
               </p>
 
-              <form
-                onSubmit={handleSubscribe}
-                className="relative mt-10 flex w-full max-w-md flex-col items-stretch gap-3 sm:flex-row"
-              >
-                <div className="relative flex-1">
-                  <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
-                    <Mail className="h-4 w-4" />
-                  </span>
+              <div className="mt-10 flex w-full flex-col items-center justify-center gap-4 sm:w-auto sm:flex-row">
+                <Show when="signed-out">
+                  <Link
+                    href="/sign-up"
+                    className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 text-sm font-bold text-white shadow-lg shadow-blue-500/20 transition hover:from-blue-500 hover:to-indigo-500 sm:w-auto"
+                  >
+                    Create your workspace
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
 
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    placeholder="Enter your work email"
-                    className="h-12 w-full rounded-xl border border-[#232D42] bg-[#0B101D] pl-11 pr-4 text-sm text-slate-200 outline-none transition placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                  />
-                </div>
+                  <Link
+                    href="/sign-in"
+                    className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-[#232D42] bg-[#0B101D] px-6 text-sm font-semibold text-slate-200 transition hover:bg-[#232D42] hover:text-white sm:w-auto"
+                  >
+                    Sign in
+                  </Link>
+                </Show>
 
-                <button
-                  type="submit"
-                  disabled={isSubmitted}
-                  className="flex h-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 text-sm font-bold text-white shadow-lg shadow-blue-500/20 transition hover:from-blue-500 hover:to-indigo-500 disabled:opacity-80"
-                >
-                  {isSubmitted ? (
-                    <span className="flex items-center gap-1.5 text-emerald-300">
-                      <Check className="h-4 w-4 stroke-[2.5]" />
-                      Saved
-                    </span>
-                  ) : (
-                    "Join Early Access"
-                  )}
-                </button>
-              </form>
+                <Show when="signed-in">
+                  <Link
+                    href="/dashboard"
+                    className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 text-sm font-bold text-white shadow-lg shadow-blue-500/20 transition hover:from-blue-500 hover:to-indigo-500 sm:w-auto"
+                  >
+                    Open Dashboard
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
 
-              {isSubmitted && (
-                <p className="mt-3 text-xs font-medium text-emerald-400">
-                  Thank you — your interest has been saved.
-                </p>
-              )}
-
-              <div className="mt-8 flex items-center gap-2 text-xs text-slate-400">
-                <span>Want to test drive first?</span>
-                <Link
-                  href="/demo"
-                  className="group inline-flex items-center gap-1 font-bold text-blue-400 transition-colors hover:text-blue-300"
-                >
-                  Launch Interactive Demo
-                  <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
-                </Link>
+                  <Link
+                    href="/demo"
+                    className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-[#232D42] bg-[#0B101D] px-6 text-sm font-semibold text-slate-200 transition hover:bg-[#232D42] hover:text-white sm:w-auto"
+                  >
+                    View Demo
+                  </Link>
+                </Show>
               </div>
+
+              <p className="mt-6 text-xs text-slate-500">
+                Built for freelancers, studios, and small client-service teams.
+              </p>
             </div>
           </div>
         </section>
@@ -773,6 +812,23 @@ export default function LandingPage() {
             >
               Launch Demo
             </Link>
+            <Show when="signed-out">
+              <Link
+                href="/demo"
+                className="font-bold text-blue-400 transition-colors hover:text-blue-300"
+              >
+                Launch Demo
+              </Link>
+            </Show>
+
+            <Show when="signed-in">
+              <Link
+                href="/dashboard"
+                className="font-bold text-blue-400 transition-colors hover:text-blue-300"
+              >
+                Open Dashboard
+              </Link>
+            </Show>
           </div>
 
           <div>

@@ -1,4 +1,4 @@
-
+// src/server/auth/get-current-workspace.ts
 import { redirect } from "next/navigation";
 
 import { prisma } from "@/server/db/prisma";
@@ -12,6 +12,7 @@ export async function getCurrentWorkspaceMembership() {
       userId: user.id,
     },
     include: {
+      user: true,
       workspace: true,
     },
     orderBy: {
