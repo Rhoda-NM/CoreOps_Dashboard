@@ -26,6 +26,15 @@ const config: Config = {
           "text-secondary": "#9CA3AF",
           muted: "#6B7280",
         },
+        landing: {
+          bg: "#0B101D",
+          card: "#161C2A",
+          border: "#232D42",
+          primary: "#4F46E5",
+          accent: "#3B82F6",
+          red: "#EF4444",
+          gold: "#F59E0B",
+        },
       },
 
       borderRadius: {

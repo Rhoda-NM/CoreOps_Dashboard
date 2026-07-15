@@ -10,60 +10,71 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
 model User {
-  id          String   @id @default(cuid())
-  name        String?
-  email       String   @unique
+  id    String  @id @default(cuid())
+  name  String?
+  email String  @unique
 
   memberships WorkspaceMember[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Workspace {
-  id        String   @id @default(cuid())
-  name      String
+  id   String  @id @default(cuid())
+  name String
+  slug String? @unique
 
-  members   WorkspaceMember[]
-  clients   Client[]
+  members  WorkspaceMember[]
+  clients  Client[]
+  projects Project[]
+  tasks    Task[]
+  invoices Invoice[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model WorkspaceMember {
-  id          String @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId      String
-  user        User @relation(fields: [userId], references: [id])
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   workspaceId String
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  role        Role @default(OWNER)
+  role Role @default(STAFF)
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([userId, workspaceId])
+  @@index([userId])
+  @@index([workspaceId])
 }
 
 model Client {
-  id          String   @id @default(cuid())
-  name        String
-  company     String?
-  email       String?
-  phone       String?
-  status      ClientStatus @default(ACTIVE)
+  id      String       @id @default(cuid())
+  name    String
+  company String?
+  email   String?
+  phone   String?
+  status  ClientStatus @default(ACTIVE)
 
   workspaceId String
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  projects    Project[]
-  invoices    Invoice[]
+  projects Project[]
+  invoices Invoice[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workspaceId])
+  @@index([workspaceId, status])
 }
 
 model Project {
@@ -74,14 +85,21 @@ model Project {
   budget      Decimal?
   deadline    DateTime?
 
-  clientId    String
-  client      Client @relation(fields: [clientId], references: [id])
+  workspaceId String?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  tasks       Task[]
-  invoices    Invoice[]
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  tasks    Task[]
+  invoices Invoice[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workspaceId])
+  @@index([workspaceId, status])
+  @@index([clientId])
 }
 
 model Task {
@@ -92,28 +110,45 @@ model Task {
   priority    Priority   @default(MEDIUM)
   dueDate     DateTime?
 
-  projectId   String
-  project     Project @relation(fields: [projectId], references: [id])
+  workspaceId String?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workspaceId])
+  @@index([workspaceId, status])
+  @@index([workspaceId, dueDate])
+  @@index([projectId])
 }
 
 model Invoice {
   id        String        @id @default(cuid())
-  invoiceNo String        @unique
+  invoiceNo String
   status    InvoiceStatus @default(DRAFT)
   amount    Decimal
   dueDate   DateTime?
 
-  clientId  String
-  client    Client @relation(fields: [clientId], references: [id])
+  workspaceId String?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   projectId String?
-  project   Project? @relation(fields: [projectId], references: [id])
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([workspaceId])
+  @@index([workspaceId, status])
+  @@index([workspaceId, dueDate])
+  @@index([clientId])
+  @@index([projectId])
 }
 
 enum ClientStatus {

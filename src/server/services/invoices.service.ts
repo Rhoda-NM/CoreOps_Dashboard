@@ -89,12 +89,14 @@ export async function getInvoices(filters?: {
   });
 }
 
+
 export async function createInvoiceForClient(data: {
   clientId: string;
+  projectId?: string;
   invoiceNo: string;
   amount: string;
   dueDate?: string;
-  projectId?: string;
+  status?: "DRAFT" | "SENT" | "PAID" | "OVERDUE" | "CANCELLED";
 }) {
   const workspaceId = await getCurrentWorkspaceId();
 
@@ -129,7 +131,7 @@ export async function createInvoiceForClient(data: {
       invoiceNo: data.invoiceNo,
       amount: data.amount,
       dueDate: data.dueDate ? new Date(data.dueDate) : null,
-      status: "SENT",
+      status: data.status || "SENT",
     },
   });
 }
