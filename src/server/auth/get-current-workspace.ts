@@ -1,16 +1,39 @@
-import { prisma } from "@/server/db/prisma";
 
-export async function getCurrentWorkspaceId() {
-  const user = await prisma.user.findUnique({
-    where: { email: "rhoda@coreops.dev" },
+import { redirect } from "next/navigation";
+
+import { prisma } from "@/server/db/prisma";
+import { getCurrentUser } from "./get-current-user";
+
+export async function getCurrentWorkspaceMembership() {
+  const user = await getCurrentUser();
+
+  const membership = await prisma.workspaceMember.findFirst({
+    where: {
+      userId: user.id,
+    },
     include: {
-      memberships: true,
+      workspace: true,
+    },
+    orderBy: {
+      createdAt: "asc",
     },
   });
 
-  if (!user || user.memberships.length === 0) {
-    throw new Error("No workspace found");
+  if (!membership) {
+    redirect("/onboarding");
   }
 
-  return user.memberships[0].workspaceId;
+  return membership;
+}
+
+export async function getCurrentWorkspace() {
+  const membership = await getCurrentWorkspaceMembership();
+
+  return membership.workspace;
+}
+
+export async function getCurrentWorkspaceId() {
+  const membership = await getCurrentWorkspaceMembership();
+
+  return membership.workspaceId;
 }

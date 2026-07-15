@@ -6,7 +6,7 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-import { db } from "../src/server/db/prisma";
+import { prisma } from "../src/server/db/prisma";
 
 function createWorkspaceSlug(name: string, workspaceId: string): string {
   const baseSlug = name
@@ -22,7 +22,7 @@ function createWorkspaceSlug(name: string, workspaceId: string): string {
 }
 
 async function backfillWorkspaceSlugs() {
-  const workspaces = await db.workspace.findMany({
+  const workspaces = await prisma.workspace.findMany({
     where: {
       slug: null,
     },
@@ -37,7 +37,7 @@ async function backfillWorkspaceSlugs() {
   for (const workspace of workspaces) {
     const slug = createWorkspaceSlug(workspace.name, workspace.id);
 
-    await db.workspace.update({
+    await prisma.workspace.update({
       where: {
         id: workspace.id,
       },
@@ -53,7 +53,7 @@ async function backfillWorkspaceSlugs() {
 }
 
 async function backfillProjectWorkspaceIds() {
-  const projects = await db.project.findMany({
+  const projects = await prisma.project.findMany({
     where: {
       workspaceId: null,
     },
@@ -81,7 +81,7 @@ async function backfillProjectWorkspaceIds() {
       );
     }
 
-    await db.project.update({
+    await prisma.project.update({
       where: {
         id: project.id,
       },
@@ -97,7 +97,7 @@ async function backfillProjectWorkspaceIds() {
 }
 
 async function backfillTaskWorkspaceIds() {
-  const tasks = await db.task.findMany({
+  const tasks = await prisma.task.findMany({
     where: {
       workspaceId: null,
     },
@@ -124,7 +124,7 @@ async function backfillTaskWorkspaceIds() {
       );
     }
 
-    await db.task.update({
+    await prisma.task.update({
       where: {
         id: task.id,
       },
@@ -140,7 +140,7 @@ async function backfillTaskWorkspaceIds() {
 }
 
 async function backfillInvoiceWorkspaceIds() {
-  const invoices = await db.invoice.findMany({
+  const invoices = await prisma.invoice.findMany({
     where: {
       workspaceId: null,
     },
@@ -185,7 +185,7 @@ async function backfillInvoiceWorkspaceIds() {
       );
     }
 
-    await db.invoice.update({
+    await prisma.invoice.update({
       where: {
         id: invoice.id,
       },
@@ -209,22 +209,22 @@ async function verifyBackfill() {
     tasksWithoutWorkspace,
     invoicesWithoutWorkspace,
   ] = await Promise.all([
-    db.workspace.count({
+    prisma.workspace.count({
       where: {
         slug: null,
       },
     }),
-    db.project.count({
+    prisma.project.count({
       where: {
         workspaceId: null,
       },
     }),
-    db.task.count({
+    prisma.task.count({
       where: {
         workspaceId: null,
       },
     }),
-    db.invoice.count({
+    prisma.invoice.count({
       where: {
         workspaceId: null,
       },
@@ -295,5 +295,5 @@ main()
     process.exitCode = 1;
   })
   .finally(async () => {
-    await db.$disconnect();
+    await prisma.$disconnect();
   });
