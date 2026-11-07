@@ -1,5 +1,5 @@
 "use server";
-import { workspacePath } from "@/server/auth/get-current-workspace";
+import { workspaceNavigationPath } from "@/server/routing/request-context";
 
 import { redirect } from "next/navigation";
 import { revalidateWorkspacePath } from "@/server/auth/revalidate-workspace";
@@ -35,5 +35,5 @@ export async function updateProjectAction(
   await revalidateWorkspacePath("/projects");
   await revalidateWorkspacePath(`/projects/${projectId}`);
 
-  redirect(await workspacePath(`/projects/${projectId}`));
+  redirect(await workspaceNavigationPath(`/projects/${projectId}`));
 }

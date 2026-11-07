@@ -1,6 +1,7 @@
 "use client";
+import { useNavigation } from "@/components/workspaces/NavigationProvider";
 
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Command } from "cmdk";
 import {
   BriefcaseBusiness,
@@ -18,7 +19,7 @@ import { QuickInvoiceForm } from "./QuickInvoiceForm";
 
 export function QuickAddDialog({ role }: { role: "OWNER" | "MANAGER" }) {
   const router = useRouter();
-  const prefix = usePathname().match(/^\/w\/[^/]+/)?.[0] ?? "";
+  const { workspace } = useNavigation();
   const {
     isOpen,
     activeView,
@@ -120,7 +121,7 @@ export function QuickAddDialog({ role }: { role: "OWNER" | "MANAGER" }) {
                   label="Open projects"
                   keywords={["projects"]}
                   onSelect={() => {
-                    router.push(`${prefix}/projects`);
+                    router.push(workspace(`/projects`));
                   }}
                 />
 
@@ -129,7 +130,7 @@ export function QuickAddDialog({ role }: { role: "OWNER" | "MANAGER" }) {
                   label="Open invoices"
                   keywords={["invoices", "billing"]}
                   onSelect={() => {
-                    router.push(`${prefix}/invoices`);
+                    router.push(workspace(`/invoices`));
                   }}
                 />}
               </Command.Group>
@@ -159,7 +160,7 @@ export function QuickAddDialog({ role }: { role: "OWNER" | "MANAGER" }) {
 
         <div className="flex items-center justify-between border-t border-core-border px-5 py-3 text-[11px] text-core-muted">
           <span>↑ ↓ navigate · Enter select · Esc close</span>
-          <span>CoreOps Velocity Hub</span>
+          <span>Quick add</span>
         </div>
       </div>
     </div>
@@ -188,7 +189,7 @@ function CommandItem({
       className="flex cursor-pointer items-center justify-between rounded-xl px-3 py-3 text-sm text-core-text outline-none transition data-[selected=true]:bg-core-surface"
     >
       <span className="flex items-center gap-3">
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-core-primary/10 text-indigo-300">
+        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-core-primary/10 text-core-accent">
           <Icon className="h-4 w-4" />
         </span>
 

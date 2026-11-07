@@ -1,5 +1,5 @@
 "use server";
-import { workspacePath } from "@/server/auth/get-current-workspace";
+import { workspaceNavigationPath } from "@/server/routing/request-context";
 
 import { redirect } from "next/navigation";
 import { revalidateWorkspacePath } from "@/server/auth/revalidate-workspace";
@@ -11,5 +11,5 @@ export async function archiveClientAction(clientId: string): Promise<void> {
   await revalidateWorkspacePath("/clients");
   await revalidateWorkspacePath("/dashboard");
 
-  redirect(await workspacePath("/clients"));
+  redirect(await workspaceNavigationPath("/clients"));
 }

@@ -19,7 +19,7 @@ export function Badge({
   ...props
 }: BadgeProps) {
   const variants = {
-    default: "bg-core-primary/15 text-indigo-300 border-core-primary/30",
+    default: "bg-core-primary/15 text-core-accent border-core-primary/30",
     success: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
     warning: "bg-amber-500/15 text-amber-300 border-amber-500/30",
     danger: "bg-red-500/15 text-red-300 border-red-500/30",

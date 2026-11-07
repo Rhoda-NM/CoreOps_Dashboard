@@ -36,7 +36,7 @@ const eventLabels: Record<string, { title: string; description: string }> = {
 };
 
 const resources: Record<string, { label: string; icon: LucideIcon; color: string }> = {
-  Workspace: { label: "Workspace", icon: Building2, color: "bg-indigo-500/10 text-indigo-300 ring-indigo-500/20" },
+  Workspace: { label: "Workspace", icon: Building2, color: "bg-indigo-500/10 text-core-accent ring-indigo-500/20" },
   WorkspaceInvitation: { label: "Invitation", icon: Mail, color: "bg-blue-500/10 text-blue-300 ring-blue-500/20" },
   WorkspaceMember: { label: "Membership", icon: UserRound, color: "bg-violet-500/10 text-violet-300 ring-violet-500/20" },
   Client: { label: "Client", icon: Users, color: "bg-cyan-500/10 text-cyan-300 ring-cyan-500/20" },
@@ -66,7 +66,7 @@ export default async function ActivityPage() {
     <main className="space-y-7 pb-8">
       <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p className="mb-2 text-xs font-medium uppercase tracking-[0.16em] text-indigo-300">Workspace / Activity</p>
+          <p className="mb-2 text-xs font-medium uppercase tracking-[0.16em] text-core-accent">Workspace / Activity</p>
           <h1 className="text-3xl font-semibold tracking-tight text-core-text">Workspace activity</h1>
           <p className="mt-2 max-w-xl text-sm leading-6 text-core-text-secondary">A clear history of the changes that keep your workspace moving.</p>
         </div>
@@ -75,7 +75,7 @@ export default async function ActivityPage() {
 
       <section aria-label="Summary of the latest recorded events" className="grid gap-4 sm:grid-cols-3">
         {[
-          { label: "Events shown", value: events.length, detail: "Latest 100 recorded changes", icon: Activity, color: "bg-indigo-500/10 text-indigo-300" },
+          { label: "Events shown", value: events.length, detail: "Latest 100 recorded changes", icon: Activity, color: "bg-indigo-500/10 text-core-accent" },
           { label: "Team & access changes", value: teamChanges, detail: "Within the events shown", icon: ShieldCheck, color: "bg-violet-500/10 text-violet-300" },
           { label: "Records affected", value: resourceCount, detail: "Distinct records in this view", icon: Layers3, color: "bg-blue-500/10 text-blue-300" },
         ].map(metric => <div key={metric.label} className="flex items-start justify-between rounded-2xl border border-core-border bg-core-card p-5">
@@ -87,17 +87,17 @@ export default async function ActivityPage() {
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
         <section aria-labelledby="timeline-heading" className="overflow-hidden rounded-2xl border border-core-border bg-core-card">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-core-border px-5 py-4 sm:px-6">
-            <h2 id="timeline-heading" className="flex items-center gap-2 text-sm font-semibold"><History aria-hidden="true" className="h-4 w-4 text-indigo-300" />Activity timeline</h2>
+            <h2 id="timeline-heading" className="flex items-center gap-2 text-sm font-semibold"><History aria-hidden="true" className="h-4 w-4 text-core-accent" />Activity timeline</h2>
             <span className="text-xs text-core-muted">Newest first</span>
           </div>
           {events.length === 0 ? <div className="flex flex-col items-center px-6 py-16 text-center">
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-core-primary/10 text-indigo-300"><History aria-hidden="true" className="h-6 w-6" /></div>
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-core-primary/10 text-core-accent"><History aria-hidden="true" className="h-6 w-6" /></div>
             <h3 className="text-base font-semibold">No activity recorded yet</h3>
             <p className="mt-2 max-w-sm text-sm leading-6 text-core-text-secondary">Workspace updates, team changes, and new work will appear here as they happen.</p>
           </div> : <div className="space-y-7 p-5 sm:p-6">{Array.from(groups.entries()).map(([day, group]) => <section key={day} aria-label={dateFormatter.format(group[0].createdAt)}>
             <h3 className="mb-5 flex items-center gap-2 text-xs font-medium text-core-text-secondary"><CalendarDays aria-hidden="true" className="h-3.5 w-3.5 text-core-muted" />{dateFormatter.format(group[0].createdAt)}<span className="ml-1 rounded-md bg-core-surface px-1.5 py-0.5 text-[10px] text-core-muted">{group.length}</span></h3>
             <ol className="space-y-0">{group.map((event, index) => {
-              const resource = resources[event.resourceType] ?? { label: readableName(event.resourceType), icon: Activity, color: "bg-indigo-500/10 text-indigo-300 ring-indigo-500/20" };
+              const resource = resources[event.resourceType] ?? { label: readableName(event.resourceType), icon: Activity, color: "bg-indigo-500/10 text-core-accent ring-indigo-500/20" };
               const presentation = eventLabels[event.action] ?? { title: readableName(event.action), description: "A change was recorded in this workspace." };
               const Icon = resource.icon;
               return <li key={event.id} className="relative flex gap-3 pb-5 last:pb-0 sm:gap-4">
@@ -116,10 +116,10 @@ export default async function ActivityPage() {
 
         <aside className="space-y-4">
           <section className="rounded-2xl border border-core-border bg-core-card p-5">
-            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-core-primary/10 text-indigo-300"><ShieldCheck aria-hidden="true" className="h-4 w-4" /></div>
+            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-core-primary/10 text-core-accent"><ShieldCheck aria-hidden="true" className="h-4 w-4" /></div>
             <h2 className="text-sm font-semibold">Your workspace history</h2>
             <p className="mt-2 text-xs leading-6 text-core-text-secondary">Review important changes to your team, clients, projects, tasks, and invoices in one place.</p>
-            <div className="mt-4 space-y-3 border-t border-core-border pt-4">{["Scoped to this workspace", "Available to workspace owners", "Latest 100 recorded changes"].map(text => <p key={text} className="flex items-center gap-2 text-xs text-core-text-secondary"><ArrowRight aria-hidden="true" className="h-3 w-3 shrink-0 text-indigo-300" />{text}</p>)}</div>
+            <div className="mt-4 space-y-3 border-t border-core-border pt-4">{["Scoped to this workspace", "Available to workspace owners", "Latest 100 recorded changes"].map(text => <p key={text} className="flex items-center gap-2 text-xs text-core-text-secondary"><ArrowRight aria-hidden="true" className="h-3 w-3 shrink-0 text-core-accent" />{text}</p>)}</div>
           </section>
           {events[0] && <section className="rounded-2xl border border-core-border bg-core-surface/50 p-5"><p className="flex items-center gap-2 text-xs font-medium text-core-text-secondary"><Clock3 aria-hidden="true" className="h-3.5 w-3.5" />Latest recorded change</p><p className="mt-3 text-sm font-medium">{dateFormatter.format(events[0].createdAt)}</p><p className="mt-1 text-xs text-core-muted">{timeFormatter.format(events[0].createdAt)} EAT</p><p className="mt-4 border-t border-core-border pt-3 text-xs leading-5 text-core-muted">Reload this page to see newly recorded activity.</p></section>}
         </aside>

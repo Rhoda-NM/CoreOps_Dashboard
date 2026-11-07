@@ -47,7 +47,7 @@ export async function initializePaystack(requestId: string, idempotencyKey: stri
   if (!claimed.count) return { reference: prepared.reference, authorizationUrl: null, status: "REVIEW" };
   try {
     const metadata = { coreopsRequestId: prepared.requestId, coreopsWorkspaceId: prepared.workspaceId, coreopsAttemptId: prepared.id, coreopsMerchantId: config.merchantId, coreopsMode: mode };
-    const result = await api(config, "transaction/initialize", { email: actor.user.email, amount: prepared.expectedMinor.toString(), currency: prepared.currency, reference: prepared.reference, channels: config.channels, callback_url: `${config.origin}/payments/paystack/return`, metadata: JSON.stringify(metadata) });
+    const result = await api(config, "transaction/initialize", { email: actor.user.email, amount: prepared.expectedMinor.toString(), currency: prepared.currency, reference: prepared.reference, channels: config.channels, callback_url: `${config.origin}/payments/paystack/return?${new URLSearchParams({ attempt: prepared.reference })}`, metadata: JSON.stringify(metadata) });
     const url = new URL(result.authorization_url);
     if (url.protocol !== "https:" || url.hostname !== "checkout.paystack.com" || url.username || url.password || result.reference !== prepared.reference) throw new CommercialError("The payment provider returned unexpected checkout details.");
     await prisma.paystackAttempt.updateMany({ where: { id: prepared.id, status: "REVIEW", lastError: "INITIALIZATION_IN_PROGRESS_OR_AMBIGUOUS" }, data: { status: "INITIALIZED", authorizationUrl: url.toString(), lastError: null } });
@@ -120,7 +120,7 @@ export async function registerPaystackMerchant(mode: GatewayMode, approval: stri
     await tx.$queryRaw`SELECT id FROM "PlatformAdmin" WHERE id=${actor.id} FOR UPDATE`;
     const admin = await tx.platformAdmin.findUniqueOrThrow({ where: { id: actor.id } });
     if (!admin.active || admin.role !== "SUPER_ADMIN") throw new CommercialError("Active super administrator required.");
-    const account = await tx.paymentReceivingAccount.create({ data: { label: `Paystack ${mode}`, method: "PAYSTACK", currency: config.currency, accountIdentifier: `paystack:${mode}:${config.merchantId}`, instructions: "Pay through CoreOps approved Paystack checkout. A successful return does not activate the workspace.", active: true, verifiedAt: new Date(), verifiedById: admin.id } });
+    const account = await tx.paymentReceivingAccount.create({ data: { label: `Paystack ${mode}`, method: "PAYSTACK", currency: config.currency, accountIdentifier: `paystack:${mode}:${config.merchantId}`, instructions: "Pay through WorkflowConnect approved Paystack checkout. A successful return does not activate the workspace.", active: true, verifiedAt: new Date(), verifiedById: admin.id } });
     await tx.platformAuditEvent.create({ data: { actorAdminId: admin.id, action: "PAYSTACK_MERCHANT_APPROVED", resourceType: "PaymentReceivingAccount", resourceId: account.id, reason: approval, metadata: { mode, merchantId: config.merchantId, capabilitiesApproval: process.env[`PAYSTACK_${mode.toUpperCase()}_CAPABILITIES_APPROVAL`]!, settlementApproval: process.env[`PAYSTACK_${mode.toUpperCase()}_SETTLEMENT_APPROVAL`]! } } });
     return account;
   });

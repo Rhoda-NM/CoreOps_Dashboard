@@ -73,7 +73,7 @@ export function QuickInvoiceForm({
           <ArrowLeft className="h-4 w-4" />
         </button>
 
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-core-primary/10 text-indigo-300">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-core-primary/10 text-core-accent">
           <Receipt className="h-4 w-4" />
         </div>
 

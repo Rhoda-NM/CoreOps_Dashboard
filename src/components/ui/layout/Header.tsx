@@ -1,89 +1,13 @@
-//src/components/ui/layout/Header.tsx
+import { centralUrl } from "@/lib/routing/host-policy";
+import { runtimeRoutingPolicy } from "@/server/routing/config";
 import { UserButton } from "@clerk/nextjs";
-import { Bell, Search } from "lucide-react";
-
+import { BrandMark } from "@/components/brand/Brand";
+import { MobileNavigation } from "./MobileNavigation";
 type HeaderProps = {
-  workspace: {
-    id: string;
-    name: string;
-    slug: string | null;
-  };
-  user: {
-    name: string | null;
-    email: string;
-    imageUrl: string | null;
-    role: string;
-  };
+  workspace: { id: string; name: string; slug: string | null };
+  user: { name: string | null; email: string; imageUrl: string | null; role: string };
 };
-
-function formatRole(role: string) {
-  return role
-    .toLowerCase()
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (character) => character.toUpperCase());
-}
-
-function getInitials(name: string | null, email: string) {
-  const source = name || email;
-
-  return source
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
-
 export function Header({ workspace, user }: HeaderProps) {
-  const displayName = user.name || user.email;
-  const initials = getInitials(user.name, user.email);
-
-  return (
-    <header className="sticky top-0 z-20 border-b border-core-border bg-core-bg/80 backdrop-blur-xl">
-      <div className="flex h-16 items-center justify-between px-5 lg:px-8">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-core-muted">
-            Workspace
-          </p>
-          <h2 className="text-sm font-semibold text-core-text">
-            {workspace.name}
-          </h2>
-        </div>
-
-        <div className="hidden w-full max-w-md items-center gap-2 rounded-xl border border-core-border bg-core-surface px-3 py-2 md:flex">
-          <Search className="h-4 w-4 text-core-muted" />
-          <input
-            placeholder="Search clients, projects, tasks..."
-            className="w-full bg-transparent text-sm text-core-text outline-none placeholder:text-core-muted"
-          />
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-core-border bg-core-surface text-core-text-secondary transition hover:bg-core-card hover:text-core-text"
-          >
-            <Bell className="h-4 w-4" />
-          </button>
-
-          <div className="hidden text-right sm:block">
-            <p className="max-w-32 truncate text-sm font-medium text-core-text">
-              {displayName}
-            </p>
-            <p className="text-xs text-core-text-secondary">
-              {formatRole(user.role)}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="hidden h-10 w-10 items-center justify-center rounded-xl bg-core-primary text-sm font-semibold text-white sm:flex">
-              {initials}
-            </div>
-
-            <UserButton userProfileMode="navigation" userProfileUrl="/account" />
-          </div>
-        </div>
-      </div>
-    </header>
-  );
+  const role = user.role.toLowerCase().replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  return <header className="sticky top-0 z-20 border-b border-core-border bg-core-bg/95 backdrop-blur-md"><div className="flex min-h-18 items-center justify-between gap-3 px-4 py-3 lg:px-8"><div className="flex min-w-0 items-center gap-3"><MobileNavigation role={user.role}/><BrandMark className="hidden h-8 w-8 text-core-primary sm:block lg:hidden"/><div className="min-w-0"><p className="text-[10px] font-medium uppercase tracking-[.14em] text-core-muted">Workspace</p><h2 className="mt-1 max-w-[45vw] truncate text-sm font-semibold sm:max-w-lg">{workspace.name}</h2></div></div><div className="flex shrink-0 items-center gap-4"><div className="hidden text-right sm:block"><p className="max-w-48 truncate text-sm font-medium">{user.name || user.email}</p><p className="mt-1 text-xs text-core-text-secondary">{role}</p></div><span className="rounded-full border border-core-border px-2.5 py-1 text-[10px] text-core-text-secondary sm:hidden">{role}</span><UserButton userProfileMode="navigation" userProfileUrl={centralUrl(runtimeRoutingPolicy(), "/account")} /></div></div></header>;
 }

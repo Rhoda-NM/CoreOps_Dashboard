@@ -1,6 +1,7 @@
 "use client";
+import { useNavigation } from "@/components/workspaces/NavigationProvider";
 
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { HTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 
@@ -14,11 +15,11 @@ export function ClickableRow({
   ...props
 }: ClickableRowProps) {
   const router = useRouter();
-  const workspacePrefix = usePathname().match(/^\/w\/[^/]+/)?.[0] ?? "";
+  const { workspace } = useNavigation();
 
   return (
     <tr
-      onClick={() => router.push(`${workspacePrefix}${href}`)}
+      onClick={() => router.push(workspace(`${href}`))}
       className={cn(
         "cursor-pointer transition hover:bg-core-surface/70",
         className

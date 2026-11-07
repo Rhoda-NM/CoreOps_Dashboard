@@ -1,5 +1,10 @@
 # CoreOps launch readiness checklist
 
+7 November routing update: [Phase 4 implementation and Phase 5 acceptance status](phase4-navigation-and-phase5-acceptance.md). Navigation regressions pass locally; real signed-in HTTPS/subdomain acceptance is still a launch gate.
+
+
+7 November local startup follow-up: [database availability, public catalog fallback and Turbopack cache repair](local-startup-troubleshooting.md). Public pages now tolerate recognized catalog outages; the original local database still requires the newer commercial migrations. Use the documented isolated rehearsal runner for authenticated development.
+
 Reviewed: 5 November 2026. Scope: repository review and local lint/type checks; production infrastructure, Clerk settings, real email delivery, backups, and browser journeys have not been verified.
 
 Follow-up: workspace authorization, identity/onboarding concurrency, tenant constraints, assignments, invitations, and audit logging have since been implemented and tested locally. See [implementation and verification evidence](workspace-authorization.md). The findings below preserve the initial audit; authorization-related findings no longer describe the current code. Production and signed-in browser verification remain outstanding, along with unrelated launch work.
@@ -9,6 +14,8 @@ Milestone 2 follow-up: [acceptance report](milestone-2-acceptance.md) records pa
 Subscription/platform follow-up (6 November 2026): [implementation and rollout policy](subscription-platform-implementation.md) and [automated/browser acceptance report](subscription-acceptance.md). New onboarding is pending activation with no trials; provisional prices remain unpublished. Commercial migrations were rehearsed only on a restored isolated database. Legacy activation policy, pricing/tax/accounts, administrator bootstrap/MFA and real signed-in acceptance remain blockers before applying to the original environment or deploying.
 
 Fresh deployment follow-up (7 November 2026): [private administration, VAT controls, Paystack preparation and verification](fresh-deployment-paystack-vat.md). The disposable-local-data decision is settled; a protected final backup is preserved. All migrations passed from empty and provisional offers remain unpublished. Stravect is not yet VAT registered, so VAT charging remains disabled. Cloud store creation, real Clerk/MFA and merchant acceptance, statutory invoice validation, production bootstrap/migrations and deployment remain outstanding.
+
+WorkflowConnect rebrand follow-up (7 November 2026): [design audit, implementation and QA report](workflowconnect-rebrand.md). Public/application branding and metadata are updated without database renames or permission changes. Public onboarding remains early-access contact by default; draft pricing is not published. Domain/trademark/legal/provider-brand approval, signed-in acceptance and production mobile-performance validation remain outstanding.
 
 **Current decision: not ready for public launch.** Complete the blocking work below, then prove the complete user journeys in staging and production. An unchecked item is unverified, not necessarily absent from external infrastructure.
 

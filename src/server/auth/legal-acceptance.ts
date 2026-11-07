@@ -1,4 +1,7 @@
 import "server-only";
+import { requestRoutingContext } from "../routing/request-context";
+import { centralUrl } from "@/lib/routing/host-policy";
+import { authReturnForPath, safeAuthReturn } from "@/lib/routing/navigation";
 import { redirect } from "next/navigation";
 import { prisma } from "@/server/db/prisma";
 import { getAuthConfiguration } from "@/config/auth";
@@ -10,7 +13,11 @@ export async function requireCurrentLegalReceipt(userId: string) {
   // No receipt query or consent prompt for unapproved drafts.
   if (!config.requireLegal || !config.legalReady) return;
   const receipt = await prisma.legalAcceptance.findUnique({ where: { userId_termsVersion_privacyVersion: { userId, termsVersion: config.termsVersion, privacyVersion: config.privacyVersion } }, select: { id: true } });
-  if (!receipt) redirect("/account/legal");
+  if (!receipt) {
+    const { policy, requestHeaders } = await requestRoutingContext();
+    const intent = safeAuthReturn(requestHeaders.get("x-coreops-return-to") ?? authReturnForPath(requestHeaders.get("x-coreops-path") ?? "/dashboard"));
+    redirect(centralUrl(policy, `/account/legal?${new URLSearchParams({ returnTo: intent })}`));
+  }
 }
 
 export async function recordLegalAcceptance(accepted: boolean, expected: { termsVersion: string; privacyVersion: string }) {

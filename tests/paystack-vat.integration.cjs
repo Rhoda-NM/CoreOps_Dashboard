@@ -10,7 +10,7 @@ Module._load=function(name,parent,main){
   if(name==='server-only')return {};
   if(name.endsWith('/get-current-user')||name==='./get-current-user')return {getCurrentUser:async()=>context.getStore().user};
   if(name.endsWith('/clerk-identity'))return {requireClerkIdentity:async()=>({id:context.getStore()?.user?.externalId,twoFactorEnabled:true})};
-  if(name==='next/headers')return {headers:async()=>new Headers({'x-coreops-workspace':context.getStore()?.workspace?.slug??''})};
+  if(name==='next/headers')return {headers:async()=>new Headers({host:'localhost:3000','x-coreops-workspace':context.getStore()?.workspace?.slug??'','x-coreops-path':`/w/${context.getStore()?.workspace?.slug??''}/subscription`})};
   if(name==='@clerk/nextjs/server')return {auth:async()=>({userId:context.getStore()?.user?.externalId,sessionClaims:{fva:[0,0]},has:()=>true}),clerkClient:async()=>({users:{getUser:async externalId=>{const u=await prisma.user.findUniqueOrThrow({where:{externalId}});return {id:externalId,primaryEmailAddressId:'p',emailAddresses:[{id:'p',emailAddress:u.email,verification:{status:'verified'}}]};}}})};
   if(name.startsWith('@/'))name=path.resolve(__dirname,'../src',name.slice(2));
   return load.call(this,name,parent,main);
@@ -27,7 +27,7 @@ const id=()=>`gateway-${randomUUID()}`,run=(user,workspace,fn)=>context.run({use
 test('fresh payment preparation, VAT snapshots and authenticated gateway confirmation',async t=>{
  const users=[],workspaces=[],offers=[],taxIds=[];let adminUser,owner,outsider,admin,account,offer;
  const originalFetch=global.fetch,oldEnv={};
- const vars={PAYSTACK_TEST_SECRET_KEY:'sk_test_coreops_isolated_fixture',PAYSTACK_TEST_MERCHANT_ID:'fixtureMerchant',PAYSTACK_TEST_CHANNELS:'card',PAYSTACK_TEST_CURRENCY:'KES',PAYSTACK_TEST_CHECKOUT_ENABLED:'true',PAYSTACK_TEST_CAPABILITIES_APPROVAL:'Isolated test capability approval',PAYSTACK_TEST_SETTLEMENT_APPROVAL:'Isolated test settlement approval',PAYSTACK_TEST_ALLOW_LEGACY_SIGNATURE:'true',PAYSTACK_TEST_WEBHOOK_SECRET:'whsec_coreops_isolated_fixture',COREOPS_PUBLIC_URL:'http://localhost:3100',COREOPS_ENVIRONMENT:'preview'};
+ const vars={PAYSTACK_TEST_SECRET_KEY:'sk_test_coreops_isolated_fixture',PAYSTACK_TEST_MERCHANT_ID:'fixtureMerchant',PAYSTACK_TEST_CHANNELS:'card',PAYSTACK_TEST_CURRENCY:'KES',PAYSTACK_TEST_CHECKOUT_ENABLED:'true',PAYSTACK_TEST_CAPABILITIES_APPROVAL:'Isolated test capability approval',PAYSTACK_TEST_SETTLEMENT_APPROVAL:'Isolated test settlement approval',PAYSTACK_TEST_ALLOW_LEGACY_SIGNATURE:'true',PAYSTACK_TEST_WEBHOOK_SECRET:'whsec_coreops_isolated_fixture',COREOPS_PUBLIC_URL:'http://localhost:3100',COREOPS_APP_ORIGIN:'http://localhost:3100',COREOPS_MARKETING_ORIGIN:'http://localhost:3100',COREOPS_ENVIRONMENT:'preview'};
  for(const[k,v]of Object.entries(vars)){oldEnv[k]=process.env[k];process.env[k]=v;}
  const overrides=new Map();let initializeCalls=0;
  global.fetch=async(url,options)=>{
@@ -35,6 +35,7 @@ test('fresh payment preparation, VAT snapshots and authenticated gateway confirm
   if(options.method==='POST'){
    initializeCalls++;const payload=JSON.parse(options.body);
    assert.equal('plan'in payload,false);assert.equal('authorization_code'in payload,false);assert.equal('subaccount'in payload,false);
+   assert.equal(payload.callback_url,`http://localhost:3100/payments/paystack/return?attempt=${payload.reference}`);
    assert.equal(payload.currency,'KES');assert.deepEqual(payload.channels,['card']);
    return new Response(JSON.stringify({status:true,data:{reference:payload.reference,authorization_url:`https://checkout.paystack.com/${payload.reference}`}}));
   }
@@ -102,7 +103,12 @@ test('fresh payment preparation, VAT snapshots and authenticated gateway confirm
   });
   await t.test('success-return page is informational and cannot credit or activate',async()=>{
    const {renderToStaticMarkup}=require('react-dom/server');const page=require('../src/app/payments/paystack/return/page.tsx').default;
-   assert.match(renderToStaticMarkup(await page()),/does not confirm receipt or activate/);
+   const html=await run(owner,pending.w,async()=>renderToStaticMarkup(await page({searchParams:Promise.resolve({attempt:attempt.reference,reference:attempt.reference,trxref:attempt.reference})})));
+   assert.match(html,/does not confirm receipt or activate/);assert.ok(html.includes('path=%2Fsubscription'));
+   const {paymentReturnPath}=require('../src/server/payments/payment-return.ts');
+   assert.equal(await run(outsider,pending.w,()=>paymentReturnPath(attempt.reference)),'/dashboard');
+   assert.equal(await run(owner,pending.w,()=>paymentReturnPath('unknown')),'/dashboard');
+   assert.equal(await prisma.subscriptionPaymentReceipt.count({where:{requestId:pending.r.id}}),0);
    assert.equal(await prisma.subscriptionPeriod.count({where:{workspaceId:pending.w.id}}),0);
   });
   await t.test('bad webhook signatures do not create records; API mismatches do not credit',async()=>{

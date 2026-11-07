@@ -77,7 +77,7 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
                   <CardContent className="flex h-full flex-col p-5">
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <h2 className="font-semibold text-core-text transition group-hover:text-indigo-300">
+                        <h2 className="font-semibold text-core-text transition group-hover:text-core-accent">
                           {project.name}
                         </h2>
 
@@ -86,7 +86,7 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
                         </p>
                       </div>
 
-                      <ArrowUpRight className="h-4 w-4 text-core-muted transition group-hover:text-indigo-300" />
+                      <ArrowUpRight className="h-4 w-4 text-core-muted transition group-hover:text-core-accent" />
                     </div>
 
                     <div className="mt-4 flex flex-wrap gap-2">

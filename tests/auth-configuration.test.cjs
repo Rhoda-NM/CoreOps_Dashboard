@@ -43,7 +43,7 @@ test('draft legal content, disclosures and production configuration fail closed'
     process.env.COREOPS_GOOGLE_IDENTITY_SCOPES_REVIEWED = 'true';
     process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_test_' + Buffer.from('test-example.clerk.accounts.dev$').toString('base64');
     const config = getAuthConfiguration();
-    const remote = { display_config: { application_name: 'CoreOps', support_email: config.supportEmail, terms_url: config.termsUrl, privacy_policy_url: config.privacyUrl }, user_settings: { sign_up: { legal_consent_enabled: true }, actions: { delete_self: false } } };
+    const remote = { display_config: { application_name: 'WorkflowConnect', support_email: config.supportEmail, terms_url: config.termsUrl, privacy_policy_url: config.privacyUrl }, user_settings: { sign_up: { legal_consent_enabled: true }, actions: { delete_self: false } } };
     globalThis.fetch = async () => ({ ok: true, json: async () => remote });
     assert.equal(await isRegistrationReady(), true);
     remote.user_settings.actions.delete_self = true;
@@ -54,7 +54,7 @@ test('draft legal content, disclosures and production configuration fail closed'
     remote.user_settings.sign_up.legal_consent_enabled = true;
     remote.display_config.application_name = 'My Application';
     assert.equal(await isRegistrationReady(), false);
-    remote.display_config.application_name = 'CoreOps';
+    remote.display_config.application_name = 'WorkflowConnect';
     globalThis.fetch = async () => { throw new Error('configuration unavailable'); };
     assert.equal(await isRegistrationReady(), false);
     process.env.COREOPS_TERMS_URL = 'javascript:alert(1)';

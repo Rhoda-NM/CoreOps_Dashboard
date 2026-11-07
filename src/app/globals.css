@@ -1,15 +1,34 @@
 @import "tailwindcss";
-
-/* Link Tailwind v4 to your config */
 @config "../../tailwind.config.ts";
 
-/* Reset base styles for CoreOps */
-html,
-body {
-  height: 100%;
+:root {
+  --brand-deep: #143D3B;
+  --brand-accent: #1FAE9A;
+  --brand-warm: #F7F8F5;
+  --brand-ink: #192B32;
+  --brand-muted: #52635F;
+  --brand-line: #DCE5DE;
+  --focus-ring: #8AE0C9;
 }
-
-body {
-  background-color: #0F172A; /* core-bg */
-  color: #F9FAFB; /* core-text */
-}
+html { min-height: 100%; scroll-padding-top: 6rem; }
+body { min-height: 100%; background: #0E2425; color: #F4F8F5; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+button, a, input, select, textarea, summary { -webkit-tap-highlight-color: transparent; }
+:where(a,button,input,select,textarea,summary):focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 4px; }
+::selection { background: #BCEBDD; color: #143D3B; }
+.marketing { --focus-ring: #147165; background: var(--brand-warm); color: var(--brand-ink); }
+.marketing h1, .marketing h2, .marketing h3 { text-wrap: balance; }
+.marketing p { text-wrap: pretty; }
+.site-container { width: min(100% - 2.5rem, 1200px); margin-inline: auto; }
+.site-section { padding-block: clamp(4.5rem, 7vw, 7.5rem); scroll-margin-top: 2rem; }
+.site-eyebrow { font-size: .8rem; font-weight: 650; text-transform: uppercase; letter-spacing: .17em; color: #147165; }
+.site-title { font-size: clamp(2.4rem, 4.5vw, 3.8rem); line-height: 1.1; letter-spacing: -.05em; font-weight: 600; }
+.site-copy { font-size: 1.125rem; color: var(--brand-muted); line-height: 1.8; }
+.site-button { display: inline-flex; min-height: 50px; align-items: center; justify-content: center; gap: .65rem; border-radius: .6rem; padding: .75rem 1.2rem; background: var(--brand-deep); color: white; font-weight: 600; font-size: 1rem; transition: background .18s, transform .18s; }
+.site-button:hover { background: #205954; transform: translateY(-1px); }
+.site-button-secondary { background: transparent; color: var(--brand-deep); border: 1px solid #B5C7BE; }
+.site-button-secondary:hover { background: #EDF2EC; }
+.site-header-link { font-size: 1rem; font-weight: 550; padding-block: .8rem; }
+.site-header-link:hover { color: #147165; }
+.sample-grid { background-image: linear-gradient(#DCE5DE80 1px, transparent 1px), linear-gradient(90deg, #DCE5DE80 1px, transparent 1px); background-size: 36px 36px; }
+@media (min-width: 640px) { .site-container { width: min(100% - 4rem, 1200px); } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }

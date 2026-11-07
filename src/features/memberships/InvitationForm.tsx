@@ -21,7 +21,7 @@ export function InvitationForm() {
     setCopyError(false);
     return inviteAction(previous, form);
   }, { error: "", path: "" });
-  const invitationUrl = state.path && typeof window !== "undefined" ? `${window.location.origin}${state.path}` : state.path;
+  const invitationUrl = state.path;
 
   async function copyInvitation() {
     try {
@@ -36,7 +36,7 @@ export function InvitationForm() {
   return (
     <section className="rounded-2xl border border-core-border bg-core-card p-5 sm:p-6" aria-labelledby="invite-heading">
       <div className="mb-5 flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-core-primary/10 text-indigo-300"><UserPlus aria-hidden="true" className="h-5 w-5" /></div>
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-core-primary/10 text-core-accent"><UserPlus aria-hidden="true" className="h-5 w-5" /></div>
         <div><h2 id="invite-heading" className="font-semibold text-core-text">Invite a teammate</h2><p className="mt-1 text-sm text-core-text-secondary">Give the right people access to your workspace.</p></div>
       </div>
       <form action={action} className="space-y-4">
@@ -49,7 +49,7 @@ export function InvitationForm() {
             </select>
           </div>
         </fieldset>
-        <div id="invitation-role-description" className="flex items-start gap-2 rounded-xl bg-core-surface/70 px-3 py-3 text-xs leading-5 text-core-text-secondary"><ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-indigo-300" /><span>{roleDescriptions[role]}</span></div>
+        <div id="invitation-role-description" className="flex items-start gap-2 rounded-xl bg-core-surface/70 px-3 py-3 text-xs leading-5 text-core-text-secondary"><ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-core-accent" /><span>{roleDescriptions[role]}</span></div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="flex items-center gap-1.5 text-xs text-core-muted"><Mail aria-hidden="true" className="h-3.5 w-3.5" />Share a private link · valid for 7 days</p>
           <Button type="submit" disabled={pending} className="gap-2">{pending ? <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" /> : <Link2 aria-hidden="true" className="h-4 w-4" />}{pending ? "Creating link…" : "Create invitation link"}</Button>

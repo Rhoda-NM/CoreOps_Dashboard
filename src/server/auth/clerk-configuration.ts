@@ -1,4 +1,5 @@
 import "server-only";
+import { brand } from "@/config/brand";
 import { getAuthConfiguration } from "@/config/auth";
 
 type ClerkConfiguration = {
@@ -27,7 +28,7 @@ export async function isRegistrationReady() {
   return remote?.user_settings?.sign_up?.legal_consent_enabled === true &&
     remote.display_config?.terms_url === config.termsUrl &&
     remote.display_config?.privacy_policy_url === config.privacyUrl &&
-    remote.display_config?.application_name === "CoreOps" &&
+    remote.display_config?.application_name === brand.name &&
     remote.display_config?.support_email === config.supportEmail &&
     remote.user_settings.actions?.delete_self === false;
 }

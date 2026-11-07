@@ -1,4 +1,5 @@
 import "server-only";
+import { requireCentralHost } from "../routing/request-context";
 import { requireInvitationCapacity, requireCommercialAccess } from "../commercial/access";
 import { createHash, randomBytes } from "node:crypto";
 import { currentUser } from "@clerk/nextjs/server";
@@ -64,6 +65,7 @@ export async function revokeInvitation(invitationId: string) {
   });
 }
 export async function acceptInvitation(token: string) {
+  await requireCentralHost();
   z.string().min(40).max(100).parse(token);
   const user = await getCurrentUser();
   const profile = await currentUser();

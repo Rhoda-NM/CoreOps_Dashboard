@@ -1,5 +1,14 @@
 # Commercial lifecycle acceptance report
 
+
+7 November Phase 4 follow-up: [navigation, account/invitation/payment continuation and metadata results](phase4-navigation-and-phase5-acceptance.md). Phase 5 HTTPS/Clerk staging acceptance is prepared and remains pending the operator’s Vercel connection; prior phase evidence below is historical.
+
+7 November routing follow-up: [Selected Slugs and Phase 3 implementation](selected-slugs-phase-3-routing.md) adds owner-chosen addresses, explicit hostname routing, central-service host guards and subscription-loop regression checks. Default path mode and commercial authorization remain; no deployment or live configuration changed.
+
+7 November subdomain follow-up: [Phase 1–2 review](workspace-subdomain-phase-1-2.md) records the implemented host/URL policy foundation, bounded slug allocation, read-only local audit and isolated onboarding tests. Hostname rewrites, Clerk/domain settings and production rollout are not enabled.
+
+7 November local schema repair: the configured localhost development database has now been backed up, rehearsed on a restored copy, and migrated through all 13 migrations. Existing fields and records were preserved; both workspaces are PENDING_ACTIVATION. No production database or activation changed. See [local repair evidence](local-startup-troubleshooting.md#local-dashboard-schema-synchronized). Earlier unmigrated-local statements below are historical.
+
 6 November 2026. **Implementation is prepared for review; not approved for production launch.** See [architecture, policies and rollout](subscription-platform-implementation.md).
 
 7 November follow-up: [fresh deployment, private admin, VAT and Paystack report](fresh-deployment-paystack-vat.md) supersedes the legacy-tenant decision below. Local workspaces are confirmed disposable; the final protected backup is preserved and the full migration chain has passed on a new empty database. VAT registration is not established, so charging remains disabled. Operator-created European Vercel/Neon stores, real Clerk/MFA acceptance and merchant verification remain pending. The earlier results below are retained as historical evidence.

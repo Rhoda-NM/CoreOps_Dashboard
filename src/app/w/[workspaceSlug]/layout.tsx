@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 // src/app/(dashboard)/layout.tsx
 import Link from "next/link";
-import { headers } from "next/headers";
+import { centralUrl } from "@/lib/routing/host-policy";
+import { workspaceRoutingContext, workspaceNavigationPath } from "@/server/routing/request-context";
 import { redirect } from "next/navigation";
 import { commercialAccess } from "@/server/commercial/access";
 import { DashboardShell } from "@/components/ui/layout/DashboardShell";
@@ -20,9 +23,12 @@ export default async function DashboardLayout({
   const memberships = await getActiveMemberships();
   const access = await commercialAccess(membership.workspaceId);
   const base = `/w/${encodeURIComponent(membership.workspace.slug!)}`;
-  const path = (await headers()).get("x-coreops-path");
-  if (!access.read && path !== `${base}/subscription`) redirect(`${base}/subscription`);
-  if (!access.read) return <main className="mx-auto max-w-5xl space-y-6 p-6 text-core-text"><nav className="flex flex-wrap gap-6"><Link href="/dashboard">CoreOps · Workspaces</Link><Link href="/account">Account & security</Link></nav><p className="text-sm text-core-muted">{membership.workspace.name} · {membership.role}</p>{children}</main>;
+  const routing = await workspaceRoutingContext();
+  const path = routing.internalPath;
+  const workspacesHref = routing.policy.mode === "subdomain" ? centralUrl(routing.policy, "/dashboard") : "/dashboard";
+  const accountHref = routing.policy.mode === "subdomain" ? centralUrl(routing.policy, "/account") : "/account";
+  if (!access.read && path !== `${base}/subscription`) redirect(await workspaceNavigationPath("/subscription"));
+  if (!access.read) return <main className="mx-auto max-w-5xl space-y-6 p-6 text-core-text"><nav className="flex flex-wrap gap-6"><Link href={workspacesHref}>WorkflowConnect · Workspaces</Link><Link href={accountHref}>Account & security</Link></nav><p className="text-sm text-core-muted">{membership.workspace.name} · {membership.role}</p>{children}</main>;
   return (
     <QuickAddProvider>
       <DashboardShell
@@ -39,7 +45,7 @@ export default async function DashboardLayout({
         }}
       >
         {memberships.length > 1 && <WorkspaceSwitcher current={membership.workspace.slug!} workspaces={memberships.map(m => ({ slug: m.workspace.slug!, name: m.workspace.name }))} />}
-        <div className="mb-4 flex flex-wrap gap-4 text-sm"><Link href={`${base}/subscription`}>Subscription</Link>{!access.write && <span>Read-only · renew your subscription to resume changes.</span>}{access.inGrace && <span>Your subscription is in its seven-day grace period.</span>}</div>
+        <div className="mb-4 flex flex-wrap gap-4 text-sm"><Link href={await workspaceNavigationPath("/subscription")}>Subscription</Link>{!access.write && <span>Read-only · renew your subscription to resume changes.</span>}{access.inGrace && <span>Your subscription is in its seven-day grace period.</span>}</div>
         {children}
       </DashboardShell>
 

@@ -65,7 +65,7 @@ export default async function DashboardPage() {
       />
 
       <section className="rounded-3xl border border-core-border bg-gradient-to-br from-core-card to-core-surface p-6 shadow-2xl shadow-black/20">
-        <Badge variant="default">CoreOps Command Center</Badge>
+        <Badge variant="default">Workspace overview</Badge>
 
         <h1 className="mt-4 max-w-2xl text-3xl font-semibold tracking-tight text-core-text md:text-4xl">
           Your business pulse, updated from real operational data.
@@ -110,7 +110,7 @@ export default async function DashboardPage() {
                         ? "flex h-11 w-11 items-center justify-center rounded-2xl bg-red-500/15 text-red-300"
                         : metric.warning
                         ? "flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-300"
-                        : "flex h-11 w-11 items-center justify-center rounded-2xl bg-core-primary/15 text-indigo-300"
+                        : "flex h-11 w-11 items-center justify-center rounded-2xl bg-core-primary/15 text-core-accent"
                     }
                   >
                     <Icon className="h-5 w-5" />

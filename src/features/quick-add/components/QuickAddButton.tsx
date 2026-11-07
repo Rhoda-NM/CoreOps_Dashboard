@@ -11,7 +11,7 @@ export function QuickAddButton() {
     <button
       type="button"
       onClick={() => openQuickAdd()}
-      className="flex w-full items-center justify-between rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:from-blue-500 hover:to-indigo-500"
+      className="flex w-full items-center justify-between rounded-xl bg-core-primary px-3 py-3 text-sm font-semibold text-white shadow-lg shadow-core-primary/10 transition hover:bg-core-primary-hover"
     >
       <span className="flex items-center gap-2">
         <Plus className="h-4 w-4" />

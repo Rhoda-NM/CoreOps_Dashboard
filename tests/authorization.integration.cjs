@@ -18,7 +18,7 @@ Module._load = function(name, parent, main) {
     return context.user;
   } };
   if (name === 'next/cache') return { revalidatePath: () => {} };
-  if (name === 'next/headers') return { headers: async () => new Headers(request.getStore()?.slug ? { 'x-coreops-workspace': request.getStore().slug } : {}), cookies: async () => ({ get: () => request.getStore()?.selected ? { value: request.getStore().selected } : undefined }) };
+  if (name === 'next/headers') return { headers: async () => new Headers({ host: 'localhost:3000', ...(request.getStore()?.slug ? { 'x-coreops-workspace': request.getStore().slug, 'x-coreops-path': `/w/${request.getStore().slug}/dashboard` } : {}), ...(request.getStore()?.headers ?? {}) }), cookies: async () => ({ get: () => request.getStore()?.selected ? { value: request.getStore().selected } : undefined }) };
   if (name === '@clerk/nextjs/server') return { currentUser: async () => ({ id: request.getStore()?.providerId ?? request.getStore()?.user?.externalId, emailAddresses: [{ emailAddress: request.getStore()?.user?.email, verification: { status: 'verified' } }] }) };
   if (name.startsWith('@/')) name = path.resolve(__dirname, '../src', name.slice(2));
   return load.call(this, name, parent, main);
@@ -141,15 +141,15 @@ test('workspace authorization and tenant integrity', async t => {
       assert.deepEqual(tabB.map(p => p.id), [pb.id]);
       assert.equal(await run(worker, a, () => legacyWorkspacePath('/projects')), '/dashboard');
       const selected = await request.run({ user: worker, slug: a.slug, selected: b.slug }, () => legacyWorkspacePath('/projects'));
-      assert.equal(selected, `/w/${b.slug}/projects`);
+      assert.equal(selected, `/dashboard/continue?workspace=${b.slug}&path=%2Fprojects`);
       const forged = await request.run({ user: outsider, selected: a.slug }, () => legacyWorkspacePath('/projects'));
       assert.equal(forged, '/onboarding');
       await run(owner, b, () => memberships.changeMembership(manager.id, { status: 'SUSPENDED' }));
       const active = await run(worker, a, getActiveMemberships);
       assert.equal(active.length, 1);
-      await assert.rejects(run(worker, a, WorkspaceSelector), e => String(e.digest).includes(`/w/${a.slug}/dashboard`));
+      await assert.rejects(run(worker, a, WorkspaceSelector), e => String(e.digest).includes(`/dashboard/continue?workspace=${a.slug}&path=%2Fdashboard`));
       await assert.rejects(run(outsider, a, WorkspaceSelector), e => String(e.digest).includes('/onboarding'));
-      assert.equal(await request.run({ user: worker, selected: b.slug }, () => legacyWorkspacePath('/projects')), `/w/${a.slug}/projects`);
+      assert.equal(await request.run({ user: worker, selected: b.slug }, () => legacyWorkspacePath('/projects')), `/dashboard/continue?workspace=${a.slug}&path=%2Fprojects`);
       await run(owner, b, () => memberships.changeMembership(manager.id, { status: 'ACTIVE' }));
     });
     await t.test('authorized server action results contain no business records and unauthorized actions reject', async () => {
@@ -255,7 +255,7 @@ test('workspace authorization and tenant integrity', async t => {
     await t.test('concurrent initial onboarding creates one workspace, owner, and subscription', async () => {
       const newcomer = await user();
       const { createWorkspaceAction } = require('../src/features/workspaces/actions/create-workspace.ts');
-      const form = new FormData(); form.set('name', 'Concurrent onboarding test');
+      const form = new FormData(); form.set('name', 'Concurrent onboarding test'); form.set('slug', id());
       const results = await Promise.allSettled(Array.from({ length: 10 }, () => run(newcomer, {}, () => createWorkspaceAction({ error: '' }, form))));
       const createdMemberships = await prisma.workspaceMember.findMany({ where: { userId: newcomer.id } });
       extraWorkspaces.push(...createdMemberships.map(m => m.workspaceId));
@@ -263,6 +263,122 @@ test('workspace authorization and tenant integrity', async t => {
       assert.equal(createdMemberships[0].role, 'OWNER');
       assert.equal(await prisma.subscription.count({ where: { workspaceId: createdMemberships[0].workspaceId } }), 1);
       assert.equal(results.every(r => r.status === 'rejected' && String(r.reason.digest).startsWith('NEXT_REDIRECT')), true);
+    });
+    await t.test('slug collision retries roll back the failed transaction and preserve pending onboarding', async () => {
+      const newcomer = await user();
+      const policy = require('../src/lib/routing/workspace-slug.ts');
+      const original = policy.generateWorkspaceSlug;
+      const successfulSlug = id();
+      let attempts = 0;
+      policy.generateWorkspaceSlug = () => ++attempts === 1 ? a.slug : successfulSlug;
+      try {
+        const { createInitialWorkspace } = require('../src/server/services/workspace-onboarding.service.ts');
+        const created = await run(newcomer, {}, () => createInitialWorkspace('Collision recovery'));
+        extraWorkspaces.push(created.id);
+        assert.equal(attempts, 2);
+        assert.equal(created.slug, successfulSlug);
+        assert.equal(created.activationStatus, 'PENDING_ACTIVATION');
+        assert.equal((await prisma.subscription.findUniqueOrThrow({ where: { workspaceId: created.id } })).status, 'PENDING_ACTIVATION');
+        assert.equal(await prisma.workspaceMember.count({ where: { userId: newcomer.id } }), 1);
+        assert.equal(await prisma.auditLog.count({ where: { workspaceId: created.id, action: 'WORKSPACE_CREATED' } }), 1);
+        const repeated = await run(newcomer, {}, () => createInitialWorkspace('A different retry name'));
+        assert.equal(repeated.id, created.id);
+        assert.equal(await prisma.workspace.count({ where: { slug: successfulSlug } }), 1);
+      } finally { policy.generateWorkspaceSlug = original; }
+    });
+    await t.test('exhausted slug retries and overlong names create no partial workspace or membership', async () => {
+      const newcomer = await user();
+      const policy = require('../src/lib/routing/workspace-slug.ts');
+      const original = policy.generateWorkspaceSlug;
+      let attempts = 0;
+      policy.generateWorkspaceSlug = () => { attempts++; return a.slug; };
+      try {
+        const { createInitialWorkspace } = require('../src/server/services/workspace-onboarding.service.ts');
+        await assert.rejects(run(newcomer, {}, () => createInitialWorkspace('Always collides')), error => error.code === 'P2002');
+        assert.equal(attempts, 5);
+        await assert.rejects(run(newcomer, {}, () => createInitialWorkspace('x'.repeat(121))));
+        assert.equal(attempts, 5);
+        assert.equal(await prisma.workspaceMember.count({ where: { userId: newcomer.id } }), 0);
+      } finally { policy.generateWorkspaceSlug = original; }
+    });
+    await t.test('selected address claims are atomic across users and repeated submissions never substitute an address', async () => {
+      const one=await user(), two=await user(), slug=id();
+      const {createInitialWorkspace,WorkspaceAddressUnavailable}=require('../src/server/services/workspace-onboarding.service.ts');
+      const results=await Promise.allSettled([run(one,{},()=>createInitialWorkspace('Owner one',slug)),run(two,{},()=>createInitialWorkspace('Owner two',slug))]);
+      const winners=results.filter(r=>r.status==='fulfilled');
+      extraWorkspaces.push(...winners.map(r=>r.value.id));
+      assert.equal(winners.length,1);
+      assert.equal(results.filter(r=>r.status==='rejected'&&r.reason instanceof WorkspaceAddressUnavailable).length,1);
+      assert.equal(await prisma.workspace.count({where:{slug}}),1);
+      assert.equal(await prisma.workspaceMember.count({where:{workspaceId:winners[0].value.id}}),1);
+      const winner=results[0].status==='fulfilled'?one:two;
+      const repeated=await run(winner,{},()=>createInitialWorkspace('Changed retry name',id()));
+      assert.equal(repeated.id,winners[0].value.id);assert.equal(repeated.slug,slug);
+      assert.equal(await prisma.auditLog.count({where:{workspaceId:repeated.id,action:'WORKSPACE_CREATED'}}),1);
+    });
+    await t.test('invalid selected addresses and a failed membership FK cannot leave partial onboarding records', async () => {
+      const newcomer=await user();const {createInitialWorkspace}=require('../src/server/services/workspace-onboarding.service.ts');
+      for(const slug of ['app','security','UPPER','ab','a'.repeat(64),'a.b',' business '])await assert.rejects(run(newcomer,{},()=>createInitialWorkspace('Valid name',slug)));
+      assert.equal(await prisma.workspaceMember.count({where:{userId:newcomer.id}}),0);
+      const slug=id();const phantom={id:id()};
+      await assert.rejects(run(phantom,{},()=>createInitialWorkspace('Rollback owner',slug)),error=>error.code==='P2003');
+      assert.equal(await prisma.workspace.count({where:{slug}}),0);
+    });
+    await t.test('availability is advisory, private, syntax-first and constrained per verified account', async () => {
+      const newcomer=await user();const {checkWorkspaceSlugAvailability:check}=require('../src/server/services/workspace-availability.service.ts');
+      assert.equal((await run(newcomer,{},()=>check('app'))).status,'invalid');
+      const used=await run(newcomer,{},()=>check(a.slug));assert.deepEqual(Object.keys(used).sort(),['message','status']);assert.equal(used.status,'unavailable');
+      for(let i=0;i<9;i++)assert.equal((await run(newcomer,{},()=>check(id()))).status,'available');
+      assert.equal((await run(newcomer,{},()=>check(id()))).status,'rate-limited');
+      await assert.rejects(run(null,{},()=>check(id())));
+      assert.equal(await prisma.workspaceMember.count({where:{userId:newcomer.id}}),0);
+    });
+    await t.test('tenant host resolution preserves roles, rejects forged/mismatched context and returns neutral unknown-tenant 404', async () => {
+      const actor=await user();const first=await prisma.workspace.create({data:{slug:id(),name:'Host fixture one'}});const second=await prisma.workspace.create({data:{slug:id(),name:'Host fixture two'}});extraWorkspaces.push(first.id,second.id);
+      await prisma.workspaceMember.create({data:{userId:actor.id,workspaceId:first.id,role:'OWNER'}});await prisma.workspaceMember.create({data:{userId:actor.id,workspaceId:second.id,role:'STAFF'}});
+      const keys=['COREOPS_ROUTING_MODE','COREOPS_APP_ORIGIN','COREOPS_MARKETING_ORIGIN','COREOPS_TENANT_ROOT_DOMAIN'];const old=Object.fromEntries(keys.map(k=>[k,process.env[k]]));
+      try {
+        Object.assign(process.env,{COREOPS_ROUTING_MODE:'subdomain',COREOPS_APP_ORIGIN:'https://app.workflowconnect.io',COREOPS_MARKETING_ORIGIN:'https://workflowconnect.io',COREOPS_TENANT_ROOT_DOMAIN:'workflowconnect.io'});
+        const routed=(workspace,fn,extra={})=>request.run({user:actor,slug:workspace.slug,headers:{host:`${workspace.slug}.workflowconnect.io`,...extra}},fn);
+        assert.equal((await routed(first,getCurrentWorkspaceMembership)).role,'OWNER');assert.equal((await routed(second,getCurrentWorkspaceMembership)).role,'STAFF');
+        await assert.rejects(routed(first,getCurrentWorkspaceMembership,{'x-coreops-workspace':second.slug,'x-coreops-path':`/w/${second.slug}/dashboard`}),e=>e instanceof AccessError);
+        await assert.rejects(routed(first,getCurrentWorkspaceMembership,{'x-coreops-path':`/w/${second.slug}/projects`}),e=>e instanceof AccessError);
+        await assert.rejects(request.run({user:null,slug:'unknown-business',headers:{host:'unknown-business.workflowconnect.io'}},getCurrentWorkspaceMembership),e=>String(e.digest).includes('404'));
+        const {createInitialWorkspace}=require('../src/server/services/workspace-onboarding.service.ts');await assert.rejects(routed(first,()=>createInitialWorkspace('Forbidden central action',id())),e=>e instanceof AccessError);
+        const layout=require('../src/app/w/[workspaceSlug]/layout.tsx').default;
+        await assert.rejects(routed(first,()=>layout({children:null})),e=>String(e.digest).includes(';/subscription;'));
+        const {renderToStaticMarkup}=require('react-dom/server');
+        const html=await routed(first,async()=>renderToStaticMarkup(await layout({children:'Pending subscription form'})),{'x-coreops-path':`/w/${first.slug}/subscription`});assert.match(html,/Pending subscription form/);
+        await prisma.workspace.update({where:{id:first.id},data:{activationStatus:'SUSPENDED'}});
+        await assert.rejects(routed(first,()=>layout({children:null})),e=>String(e.digest).includes(';/subscription;'));
+        const {commercialAccess}=require('../src/server/commercial/access.ts');const expired=await commercialAccess(a.id,prisma,new Date(Date.now()+400*86400000));assert.equal(expired.read,true);assert.equal(expired.write,false);
+      } finally {for(const [key,value]of Object.entries(old)){if(value===undefined)delete process.env[key];else process.env[key]=value;}}
+    });
+    await t.test('central continuation rechecks memberships and tenant redirects retain tab context', async () => {
+      const { resolveWorkspaceContinuation } = require('../src/server/routing/continuation.ts');
+      const { workspaceNavigationPath } = require('../src/server/routing/request-context.ts');
+      const { workspacePath } = require('../src/server/auth/get-current-workspace.ts');
+      assert.equal(await run(owner, {}, () => resolveWorkspaceContinuation(a.slug, '/tasks?status=TODO')), `http://localhost:3000/w/${a.slug}/tasks?status=TODO`);
+      const freshNonmember=await user();
+      assert.equal(await run(freshNonmember, {}, () => resolveWorkspaceContinuation(a.slug, '/tasks')), null);
+      assert.equal(await run(owner, {}, () => resolveWorkspaceContinuation(a.slug, '//evil.test')), null);
+      assert.equal(await run(owner, {}, () => resolveWorkspaceContinuation([a.slug,b.slug], '/tasks')), null);
+      const keys=['COREOPS_ROUTING_MODE','COREOPS_APP_ORIGIN','COREOPS_MARKETING_ORIGIN','COREOPS_TENANT_ROOT_DOMAIN'];
+      const old=Object.fromEntries(keys.map(key=>[key,process.env[key]]));
+      Object.assign(process.env,{COREOPS_ROUTING_MODE:'subdomain',COREOPS_APP_ORIGIN:'https://app.workflowconnect.io',COREOPS_MARKETING_ORIGIN:'https://workflowconnect.io',COREOPS_TENANT_ROOT_DOMAIN:'workflowconnect.io'});
+      try {
+        const central = (user,fn) => request.run({user,headers:{host:'app.workflowconnect.io'}},fn);
+        const tab = (workspace,fn) => request.run({user:owner,slug:workspace.slug,headers:{host:`${workspace.slug}.workflowconnect.io`}},fn);
+        assert.equal(await central(owner,()=>resolveWorkspaceContinuation(a.slug,'/projects')), `https://${a.slug}.workflowconnect.io/projects`);
+        const targets=await Promise.all([tab(a,()=>workspaceNavigationPath('/tasks')),tab(b,()=>workspaceNavigationPath('/projects'))]);
+        assert.deepEqual(targets,['/tasks','/projects']);
+        assert.equal(await tab(a,()=>workspacePath('/tasks')),`/w/${a.slug}/tasks`, 'cache invalidation must retain its internal route');
+        await assert.rejects(tab(a,()=>resolveWorkspaceContinuation(b.slug,'/dashboard')),e=>e instanceof AccessError);
+        const member=await prisma.workspaceMember.findFirstOrThrow({where:{userId:owner.id,workspaceId:b.id}});
+        await prisma.workspaceMember.update({where:{id:member.id},data:{status:'SUSPENDED'}});
+        assert.equal(await central(owner,()=>resolveWorkspaceContinuation(b.slug,'/tasks')), null);
+        await prisma.workspaceMember.update({where:{id:member.id},data:{status:'ACTIVE'}});
+      } finally { for(const[key,value]of Object.entries(old)){if(value===undefined)delete process.env[key];else process.env[key]=value;} }
     });
     await t.test('audit entry and administrative mutation share one transaction', async () => {
       assert.ok(await prisma.auditLog.count({ where: { workspaceId: a.id, action: 'MEMBERSHIP_CHANGED' } }) > 0);

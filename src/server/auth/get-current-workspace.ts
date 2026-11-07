@@ -1,6 +1,7 @@
 import "server-only";
 import { requireCommercialAccess } from "../commercial/access";
-import { headers } from "next/headers";
+import { notFound } from "next/navigation";
+import { workspaceRoutingContext } from "../routing/request-context";
 import { prisma } from "@/server/db/prisma";
 import { getCurrentUser } from "./get-current-user";
 import { AccessError } from "../authorization/errors";
@@ -11,8 +12,11 @@ export async function getActiveMemberships() {
 }
 
 export async function getCurrentWorkspaceMembership() {
-  const slug = (await headers()).get("x-coreops-workspace");
-  if (!slug) throw new AccessError("FORBIDDEN");
+  const context = await workspaceRoutingContext();
+  const { slug } = context;
+  // Indexed existence check only; identity/membership/commercial checks stay
+  // authoritative below. Unknown tenant pages fail neutrally before sign-in.
+  if (context.policy.mode === "subdomain" && !await prisma.workspace.findUnique({ where: { slug }, select: { id: true } })) notFound();
   const user = await getCurrentUser();
   const member = await prisma.workspaceMember.findFirst({
     where: { userId: user.id, status: "ACTIVE", workspace: { slug } },

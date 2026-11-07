@@ -69,7 +69,7 @@ export default async function TasksPage() {
                 <TableCell>
                   {role === "STAFF" ? <span>{task.project.client.name}</span> : <Link
                     href={`/clients/${task.project.client.id}`}
-                    className="inline-flex items-center gap-2 transition hover:text-indigo-300"
+                    className="inline-flex items-center gap-2 transition hover:text-core-accent"
                   >
                     <Users className="h-4 w-4 text-core-muted" />
                     {task.project.client.name}
@@ -79,7 +79,7 @@ export default async function TasksPage() {
                 <TableCell>
                   <Link
                     href={`/projects/${task.project.id}`}
-                    className="inline-flex items-center gap-2 transition hover:text-indigo-300"
+                    className="inline-flex items-center gap-2 transition hover:text-core-accent"
                   >
                     <BriefcaseBusiness className="h-4 w-4 text-core-muted" />
                     {task.project.name}
@@ -246,7 +246,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
                   <TableCell>
                     {role === "STAFF" ? <span>{task.project.client.name}</span> : <Link
                       href={`/clients/${task.project.client.id}`}
-                      className="inline-flex items-center gap-2 transition hover:text-indigo-300"
+                      className="inline-flex items-center gap-2 transition hover:text-core-accent"
                     >
                       <Users className="h-4 w-4 text-core-muted" />
                       {task.project.client.name}
@@ -256,7 +256,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
                   <TableCell>
                     <Link
                       href={`/projects/${task.project.id}`}
-                      className="inline-flex items-center gap-2 transition hover:text-indigo-300"
+                      className="inline-flex items-center gap-2 transition hover:text-core-accent"
                     >
                       <BriefcaseBusiness className="h-4 w-4 text-core-muted" />
                       {task.project.name}

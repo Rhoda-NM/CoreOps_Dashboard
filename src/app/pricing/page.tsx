@@ -1,9 +1,25 @@
-import Link from "next/link";
-import { currentTaxConfiguration, calculateTax } from "@/server/commercial/tax";
-import { publishedOffers } from "@/server/commercial/service";
+import type { Metadata } from "next";
+import Link from "@/components/workspaces/SiteLink";
+import { ArrowUpRight } from "lucide-react";
+import { SiteHeader } from "@/components/marketing/SiteHeader";
+import { SiteFooter } from "@/components/marketing/SiteFooter";
+import { Pricing } from "@/components/marketing/Pricing";
+import { marketingContent } from "@/server/commercial/marketing";
+import { canonicalOrigin } from "@/config/brand";
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Pricing", description: "Monthly and annual plans for freelancers, small teams, and growing service businesses.", ...(canonicalOrigin() ? { alternates: { canonical: "/pricing" } } : {}) };
+const questions = [
+  ["What counts as a member?", "Everyone with a workspace membership, including the owner. Pending invitations reserve seats; suspended members retain their seat."],
+  ["How do I get started?", "Sign in or create your account, set up your workspace, and choose a plan. Your subscription request is reviewed before payment and activation."],
+  ["How do renewals work?", "Renewals are manual. You can request your next monthly or annual period before the current one ends."],
+  ["Can I add my team on Solo?", "Solo is for one owner. Choose Starter or Business for team invitations. A plan change takes effect only after review and activation."],
+];
 export default async function PricingPage() {
-  const offers = await publishedOffers();
-  const tax = await currentTaxConfiguration();
-  return <main className="min-h-screen bg-core-bg px-6 py-16 text-core-text"><div className="mx-auto max-w-5xl space-y-10"><Link href="/" className="font-semibold">CoreOps</Link><header className="space-y-4"><p className="text-sm uppercase tracking-widest text-indigo-400">Built for your business</p><h1 className="text-4xl font-semibold">One workspace. A plan that fits.</h1><p className="max-w-2xl text-core-muted">Client, project, task, and invoice management for independent professionals and teams. Subscriptions are activated after commercial review and verified payment.</p></header>{!offers.length ? <section className="rounded-2xl border border-core-border p-8"><h2 className="text-xl font-semibold">Subscription offers are being finalized</h2><p className="mt-3 text-core-muted">Contact us for an approved quotation. No automatic trial or payment is required to create a pending business account.</p><a className="mt-6 inline-block text-indigo-400 underline" href="mailto:info@stravectsystems.com">Discuss your subscription</a></section> : <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{offers.map(o => <article key={o.id} className="space-y-4 rounded-2xl border border-core-border p-6"><h2 className="text-xl font-semibold">{o.name}</h2><p className="text-2xl font-semibold">{o.amount ? `${o.currency} ${o.amount.toFixed(2)}` : "Quotation"}<span className="text-sm text-core-muted"> / {o.interval.toLowerCase()}</span></p><p className="text-sm">{o.memberLimit ?? "Contract-defined"} total members, including the owner</p><p className="text-sm text-core-muted">{o.taxTreatment === "EXCLUSIVE" ? "Base amount; VAT is added only when legally applicable." : "Displayed amount is the inclusive quotation amount."} Final payable {o.amount ? `${o.currency} ${calculateTax(o.amount, o.taxTreatment, tax).payable.toFixed(2)}` : "is confirmed in your reviewed quote"}. {(!tax || tax.registrationStatus !== "REGISTERED") && "No VAT is currently charged."} {o.invitationsEnabled ? "Team invitations included within your seat allowance." : "Designed for one owner; invitations unavailable."}</p><Link className="inline-block rounded-lg bg-indigo-600 px-4 py-2" href="/sign-up">Create business account</Link></article>)}</section>}<footer className="flex flex-wrap gap-6 text-sm text-core-muted"><Link href="/sign-in">Sign in</Link><Link href="/terms">Terms</Link><Link href="/privacy">Privacy</Link></footer></div></main>;
+  const content = await marketingContent();
+  return <div className="marketing min-h-screen"><SiteHeader ctaHref={content.ctaHref} ctaLabel={content.ctaLabel}/>
+    <main id="main-content" className="site-container pb-20 pt-16 sm:pt-20">
+      <header className="mx-auto mb-10 max-w-3xl text-center"><p className="site-eyebrow">A LITTLE CLARITY GOES A LONG WAY</p><h1 className="site-title mt-5">The right space<br/>for your business.</h1><p className="site-copy mx-auto mt-6 max-w-xl">Start on your own. Make room for your team.<br className="hidden sm:block"/> Keep your work connected at every stage.</p></header>
+      <Pricing content={content}/>
+      <section className="mt-20 grid gap-10 border-t border-brand-line pt-14 lg:grid-cols-[.8fr_1.2fr]"><div><p className="site-eyebrow">GOOD TO KNOW</p><h2 className="mt-4 text-3xl font-semibold tracking-tight">A few clear answers.</h2><Link href="/features" className="mt-6 inline-flex min-h-12 items-center gap-2 text-lg font-semibold text-brand-deep">Explore the features<ArrowUpRight aria-hidden="true" size={18}/></Link></div><div>{questions.map(([question,answer]) => <details key={question} className="border-b border-brand-line py-5 first:pt-0"><summary className="cursor-pointer text-lg font-semibold">{question}</summary><p className="site-copy mt-3">{answer}</p></details>)}</div></section>
+    </main><SiteFooter/></div>;
 }

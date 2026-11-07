@@ -18,7 +18,12 @@
     "test:commercial": "node --env-file=.env --test tests/commercial.integration.cjs",
     "bootstrap:platform-admin": "node scripts/bootstrap-platform-admin.cjs",
     "test:payments": "node --env-file=.env --test tests/paystack-vat.integration.cjs",
-    "check:environment-isolation": "node scripts/check-environment-isolation.cjs"
+    "check:environment-isolation": "node scripts/check-environment-isolation.cjs",
+    "test:brand": "node tests/brand-experience.test.cjs",
+    "test:marketing-availability": "node tests/marketing-availability.test.cjs",
+    "test:navigation": "node tests/navigation.test.cjs",
+    "test:host-policy": "node tests/host-policy.test.cjs",
+    "audit:workspace-hostnames": "node --env-file=.env scripts/audit-workspace-hostnames.cjs"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

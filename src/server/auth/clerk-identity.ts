@@ -1,11 +1,12 @@
 import "server-only";
 import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { authenticationDestination } from "../routing/auth-navigation";
 import { IdentityError } from "./identity-error";
 
 export async function requireClerkIdentity({ allowUnverifiedEmail = false }: { allowUnverifiedEmail?: boolean } = {}) {
   const { userId, sessionId } = await auth();
-  if (!userId || !sessionId) redirect("/sign-in");
+  if (!userId || !sessionId) redirect(await authenticationDestination());
   let profile;
   try {
     // A live check rejects a known revoked session instead of relying only on

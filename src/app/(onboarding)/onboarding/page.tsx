@@ -1,4 +1,5 @@
 //src/app/%28onboarding%29/onboarding/page.tsx
+import { requireCentralHost } from "@/server/routing/request-context";
 import { redirect } from "next/navigation";
 
 import { WorkspaceOnboardingForm } from "@/features/workspaces/components/WorkSpaceOnboardingForm";
@@ -6,6 +7,7 @@ import { getCurrentUser } from "@/server/auth/get-current-user";
 import { prisma } from "@/server/db/prisma";
 
 export default async function OnboardingPage() {
+  const { policy } = await requireCentralHost();
   const user = await getCurrentUser();
 
   const existingMembership = await prisma.workspaceMember.findFirst({
@@ -27,8 +29,8 @@ export default async function OnboardingPage() {
     : "My Workspace";
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#0B101D] px-6 py-12">
-      <WorkspaceOnboardingForm defaultName={defaultWorkspaceName} />
+    <main className="flex min-h-screen items-center justify-center bg-[#0E2425] px-6 py-12">
+      <WorkspaceOnboardingForm defaultName={defaultWorkspaceName} addressDomain={policy.tenantRootDomain ?? "workflowconnect.io"} />
     </main>
   );
 }

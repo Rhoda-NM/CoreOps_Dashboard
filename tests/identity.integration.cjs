@@ -10,6 +10,7 @@ require('ts-node').register({ transpileOnly: true, compilerOptions: { module: 'C
 const request = new AsyncLocalStorage();
 const load = Module._load;
 Module._load = function(name, parent, main) {
+  if (name === 'next/headers') return {headers:async()=>new Headers({host:'localhost:3000','x-coreops-path':'/dashboard'})};
   if (name === 'server-only') return {};
   if (name === '@clerk/nextjs/server') return {
     auth: async () => ({ userId: request.getStore()?.id, sessionId: request.getStore()?.id ? 'test-session' : null }),

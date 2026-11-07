@@ -1,5 +1,5 @@
 "use server";
-import { workspacePath } from "@/server/auth/get-current-workspace";
+import { workspaceNavigationPath } from "@/server/routing/request-context";
 
 import { redirect } from "next/navigation";
 import { revalidateWorkspacePath } from "@/server/auth/revalidate-workspace";
@@ -33,5 +33,5 @@ export async function updateClientAction(
   await revalidateWorkspacePath("/clients");
   await revalidateWorkspacePath(`/clients/${clientId}`);
 
-  redirect(await workspacePath(`/clients/${clientId}`));
+  redirect(await workspaceNavigationPath(`/clients/${clientId}`));
 }

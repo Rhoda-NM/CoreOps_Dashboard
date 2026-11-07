@@ -11,7 +11,7 @@ Module._load = function(name, parent, main) {
   if (name === 'server-only') return {};
   if (name.endsWith('/get-current-user') || name === './get-current-user') return { getCurrentUser: async () => { if (!request.getStore()?.user) throw new Error('Unauthenticated'); return request.getStore().user; } };
   if (name.endsWith('/clerk-identity')) return { requireClerkIdentity: async () => ({ id: request.getStore()?.user?.externalId, twoFactorEnabled: request.getStore()?.mfa !== false }) };
-  if (name === 'next/headers') return { headers: async () => new Headers({ 'x-coreops-workspace': request.getStore()?.workspace?.slug ?? '' }) };
+  if (name === 'next/headers') return { headers: async () => new Headers({ host: request.getStore()?.host ?? 'localhost:3000', 'x-coreops-workspace': request.getStore()?.workspace?.slug ?? '', 'x-coreops-path': `/w/${request.getStore()?.workspace?.slug ?? ''}/subscription` }) };
   if (name === '@clerk/nextjs/server') return { clerkClient: async()=>({users:{getUser:async externalId=>{const user=await prisma.user.findUniqueOrThrow({where:{externalId}});return {id:externalId,primaryEmailAddressId:'primary',emailAddresses:[{id:'primary',emailAddress:user.email,verification:{status:request.getStore()?.ownerVerified===false?'unverified':'verified'}}]};}}}), auth: async () => ({ userId: request.getStore()?.user?.externalId, sessionClaims:{fva:request.getStore()?.secondFactor===false?[0,-1]:[0,0]}, has: () => request.getStore()?.mfa !== false }), currentUser: async () => ({ id: request.getStore()?.user?.externalId, emailAddresses: [{ emailAddress: request.getStore()?.user?.email, verification: { status: 'verified' } }] }) };
   if (name.startsWith('@/')) name = path.resolve(__dirname, '../src', name.slice(2));
   return load.call(this,name,parent,main);
@@ -48,6 +48,17 @@ test('commercial lifecycle, database integrity, entitlements and platform isolat
     soloOffer=await offer('SOLO',1); starterOffer=await offer('STARTER',3);businessOffer=await offer('BUSINESS',10);
     account=await prisma.paymentReceivingAccount.create({data:{id:id(),label:'Test receiving account',method:'MPESA',currency:'KES',accountIdentifier:id(),instructions:'Isolated test only',active:true,verifiedAt:new Date(),verifiedById:admin.id}});accounts.push(account);
     a=await workspace(owner);b=await workspace(owner);
+    await t.test('administrative services independently require the central host in subdomain mode',async()=>{
+      const keys=['COREOPS_ROUTING_MODE','COREOPS_APP_ORIGIN','COREOPS_MARKETING_ORIGIN','COREOPS_TENANT_ROOT_DOMAIN'];const old=Object.fromEntries(keys.map(k=>[k,process.env[k]]));
+      try{
+        Object.assign(process.env,{COREOPS_ROUTING_MODE:'subdomain',COREOPS_APP_ORIGIN:'https://app.workflowconnect.io',COREOPS_MARKETING_ORIGIN:'https://workflowconnect.io',COREOPS_TENANT_ROOT_DOMAIN:'workflowconnect.io'});
+        const central=fn=>request.run({user:superuser,mfa:true,host:'app.workflowconnect.io'},fn);
+        assert.equal((await central(()=>requirePlatform('activate'))).id,admin.id);
+        for(const host of ['customer.workflowconnect.io','workflowconnect.io','evil.test'])await assert.rejects(request.run({user:superuser,mfa:true,host},()=>requirePlatform('activate')));
+        await assert.rejects(request.run({user:superuser,mfa:false,host:'app.workflowconnect.io'},()=>requirePlatform('activate')));
+        await assert.rejects(request.run({user:owner,mfa:true,host:'app.workflowconnect.io'},()=>requirePlatform('activate')));
+      }finally{for(const [key,value]of Object.entries(old)){if(value===undefined)delete process.env[key];else process.env[key]=value;}}
+    });
     await t.test('exact decimal validation and UTC month-end/leap-year calculations',()=>{
       for (const value of ['NaN','Infinity','1e4','-1','0','0.001','1,000']) assert.throws(()=>money(value));
       assert.equal(money('123.45').toFixed(2),'123.45');

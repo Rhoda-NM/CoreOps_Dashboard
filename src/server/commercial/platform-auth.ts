@@ -1,4 +1,5 @@
 import "server-only";
+import { requireCentralHost } from "../routing/request-context";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "../db/prisma";
 import { redirect } from "next/navigation";
@@ -10,6 +11,7 @@ export function platformCan(role: PlatformRole, permission: PlatformPermission) 
   return role === "SUPER_ADMIN" || (role === "BILLING_ADMIN" && ["directory", "billing", "audit"].includes(permission)) || (role === "SUPPORT" && ["directory", "audit"].includes(permission));
 }
 export async function platformEntry() {
+  await requireCentralHost();
   const session = await auth();
   if (!session.userId) return { admin: null, signedIn: false, mfa: false };
   const identity = await requireClerkIdentity();

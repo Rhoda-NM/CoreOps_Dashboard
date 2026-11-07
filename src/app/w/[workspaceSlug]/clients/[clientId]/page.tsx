@@ -186,7 +186,7 @@ export default async function ClientDetailsPage({
                             >
                                 <div className="flex items-start justify-between gap-4">
                                 <div>
-                                    <p className="font-medium text-core-text transition group-hover:text-indigo-300">
+                                    <p className="font-medium text-core-text transition group-hover:text-core-accent">
                                     {project.name}
                                     </p>
 
@@ -200,7 +200,7 @@ export default async function ClientDetailsPage({
                                     </div>
                                 </div>
 
-                                <ArrowUpRight className="h-4 w-4 text-core-muted transition group-hover:text-indigo-300" />
+                                <ArrowUpRight className="h-4 w-4 text-core-muted transition group-hover:text-core-accent" />
                                 </div>
                             </Link>
                             ))}
