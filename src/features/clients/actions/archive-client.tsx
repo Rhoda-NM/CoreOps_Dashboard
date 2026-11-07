@@ -1,14 +1,15 @@
 "use server";
+import { workspacePath } from "@/server/auth/get-current-workspace";
 
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
+import { revalidateWorkspacePath } from "@/server/auth/revalidate-workspace";
 import { archiveClient } from "@/server/services/clients.service";
 
 export async function archiveClientAction(clientId: string): Promise<void> {
   await archiveClient(clientId);
 
-  revalidatePath("/clients");
-  revalidatePath("/dashboard");
+  await revalidateWorkspacePath("/clients");
+  await revalidateWorkspacePath("/dashboard");
 
-  redirect("/clients");
+  redirect(await workspacePath("/clients"));
 }

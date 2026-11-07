@@ -1,7 +1,8 @@
 "use server";
+import { workspacePath } from "@/server/auth/get-current-workspace";
 
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
+import { revalidateWorkspacePath } from "@/server/auth/revalidate-workspace";
 import { clientSchema } from "../schemas/client-schema";
 import { updateClient } from "@/server/services/clients.service";
 
@@ -29,8 +30,8 @@ export async function updateClientAction(
     phone: result.data.phone || undefined,
   });
 
-  revalidatePath("/clients");
-  revalidatePath(`/clients/${clientId}`);
+  await revalidateWorkspacePath("/clients");
+  await revalidateWorkspacePath(`/clients/${clientId}`);
 
-  redirect(`/clients/${clientId}`);
+  redirect(await workspacePath(`/clients/${clientId}`));
 }

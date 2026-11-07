@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateWorkspacePath } from "@/server/auth/revalidate-workspace";
 import { invoiceSchema } from "../schemas/invoice-schema";
 import { createInvoiceForClient } from "@/server/services/invoices.service";
 
@@ -29,12 +29,12 @@ export async function createInvoiceAction(
     projectId: result.data.projectId || undefined,
   });
 
-  revalidatePath(`/clients/${clientId}`);
-  revalidatePath("/invoices");
-  revalidatePath("/dashboard");
+  await revalidateWorkspacePath(`/clients/${clientId}`);
+  await revalidateWorkspacePath("/invoices");
+  await revalidateWorkspacePath("/dashboard");
 
   {/*if (result.data.projectId) {
-    revalidatePath(`/projects/${result.data.projectId}`);
+    await revalidateWorkspacePath(`/projects/${result.data.projectId}`);
   }
 
   return {

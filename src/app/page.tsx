@@ -149,7 +149,7 @@ export default function LandingPage() {
                 href="/sign-up"
                 className="inline-flex h-10 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition-all hover:scale-[1.02] hover:from-blue-500 hover:to-indigo-500"
               >
-                Start Free
+                Create business account
               </Link>
             </Show>
 
@@ -236,7 +236,7 @@ export default function LandingPage() {
                     onClick={() => setMobileMenuOpen(false)}
                     className="flex h-11 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-sm font-semibold text-white shadow-lg shadow-blue-500/20"
                   >
-                    Start Free
+                    Create business account
                   </Link>
                 </div>
               </Show>

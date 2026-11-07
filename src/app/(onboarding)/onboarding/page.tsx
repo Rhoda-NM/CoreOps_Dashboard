@@ -11,6 +11,7 @@ export default async function OnboardingPage() {
   const existingMembership = await prisma.workspaceMember.findFirst({
     where: {
       userId: user.id,
+      status: "ACTIVE",
     },
     select: {
       workspaceId: true,

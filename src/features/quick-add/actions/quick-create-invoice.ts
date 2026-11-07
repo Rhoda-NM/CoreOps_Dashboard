@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateWorkspacePath } from "@/server/auth/revalidate-workspace";
 import { z } from "zod";
 
 import { createInvoiceForClient } from "@/server/services/invoices.service";
@@ -62,12 +62,12 @@ export async function quickCreateInvoiceAction(
       dueDate: result.data.dueDate,
     });
 
-    revalidatePath("/dashboard");
-    revalidatePath("/invoices");
-    revalidatePath(`/clients/${result.data.clientId}`);
+    await revalidateWorkspacePath("/dashboard");
+    await revalidateWorkspacePath("/invoices");
+    await revalidateWorkspacePath(`/clients/${result.data.clientId}`);
 
     if (result.data.projectId) {
-      revalidatePath(`/projects/${result.data.projectId}`);
+      await revalidateWorkspacePath(`/projects/${result.data.projectId}`);
     }
 
     return {

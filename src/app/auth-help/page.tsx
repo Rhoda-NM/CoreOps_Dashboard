@@ -1,0 +1,11 @@
+import Link from "next/link";
+import { getAuthConfiguration } from "@/config/auth";
+import { LegalLinks } from "@/components/auth/LegalLinks";
+export default function AuthHelpPage() {
+  const { supportEmail } = getAuthConfiguration();
+  return <main className="mx-auto max-w-2xl space-y-7 px-5 py-12 text-core-text"><Link href="/sign-in" className="text-sm text-indigo-300">← Back to sign in</Link><div><p className="text-xs uppercase tracking-widest text-indigo-300">CoreOps</p><h1 className="mt-2 text-3xl font-semibold">Sign-in & account recovery</h1></div>
+    <section className="space-y-3"><h2 className="text-lg font-semibold">Use your usual sign-in method</h2><p className="text-sm leading-7 text-core-text-secondary">If you already use CoreOps, start with the same Google account or email sign-in method you used before. Clerk may ask you to verify email ownership before connecting another sign-in method. Signing in does not create a new business workspace.</p></section>
+    <section className="space-y-3"><h2 className="text-lg font-semibold">Forgotten password or verification challenge?</h2><p className="text-sm leading-7 text-core-text-secondary">Choose the password recovery option in the sign-in form. Follow Clerk’s email or multi-factor prompts, and keep recovery codes private. For Google accounts, recover access with Google before returning to CoreOps.</p></section>
+    <section className="space-y-3"><h2 className="text-lg font-semibold">Access still unavailable?</h2><p className="text-sm leading-7 text-core-text-secondary">CoreOps does not merge accounts based on an email match. A recovery review must verify ownership before any account connection is changed. Do not create replacement workspaces to recover missing business data.</p>{supportEmail ? <a href={`mailto:${supportEmail}`} className="inline-block text-sm text-indigo-300 underline">Contact CoreOps support</a> : <p className="text-sm text-core-text-secondary">Contact the CoreOps operator through your established support channel. A public support address has not been published yet.</p>}<p className="text-xs leading-6 text-core-muted">Do not send passwords, verification codes, session cookies, or recovery codes. Support will not ask for them.</p></section><LegalLinks />
+  </main>;
+}

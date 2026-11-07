@@ -1,7 +1,7 @@
 //src/components/ui/layout/Sidebar.tsx
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/workspaces/WorkspaceLink";
 import { usePathname } from "next/navigation";
 import { BriefcaseBusiness } from "lucide-react";
 
@@ -60,14 +60,14 @@ export function Sidebar({ workspace, role }: SidebarProps) {
       </div>
 
       <div className="mb-6">
-        <QuickAddButton />
+        {role !== "STAFF" && <QuickAddButton />}
       </div>
 
       <nav className="space-y-1">
-        {dashboardNav.map((item) => {
+        {dashboardNav.filter(item => !(role === "STAFF" && ["/clients", "/settings", "/activity"].includes(item.href)) && !(role !== "OWNER" && ["/invoices", "/settings", "/activity"].includes(item.href))).map((item) => {
           const Icon = item.icon;
           const isActive =
-            pathname === item.href || pathname.startsWith(`${item.href}/`);
+            pathname.replace(/^\/w\/[^/]+/, "") === item.href || pathname.replace(/^\/w\/[^/]+/, "").startsWith(`${item.href}/`);
 
           return (
             <Link

@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateWorkspacePath } from "@/server/auth/revalidate-workspace";
 import { taskSchema } from "../schemas/task-schema";
 import { createTaskForProject } from "@/server/services/tasks.service";
 
@@ -30,6 +30,6 @@ export async function createTaskAction(
     dueDate: result.data.dueDate || undefined,
   });
 
-  revalidatePath(`/clients/${clientId}`);
-  revalidatePath(`/projects/${projectId}`);
+  await revalidateWorkspacePath(`/clients/${clientId}`);
+  await revalidateWorkspacePath(`/projects/${projectId}`);
 }

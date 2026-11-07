@@ -1,10 +1,11 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 
 export function InvoiceFilters() {
   const router = useRouter();
+  const workspacePrefix = usePathname().match(/^\/w\/[^/]+/)?.[0] ?? "";
   const searchParams = useSearchParams();
 
   const currentQuery = searchParams.get("query") || "";
@@ -20,7 +21,7 @@ export function InvoiceFilters() {
       params.set(key, value);
     }
 
-    router.push(`/invoices?${params.toString()}`);
+    router.push(`${workspacePrefix}/invoices?${params.toString()}`);
   }
 
   return (

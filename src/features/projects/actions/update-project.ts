@@ -1,7 +1,8 @@
 "use server";
+import { workspacePath } from "@/server/auth/get-current-workspace";
 
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
+import { revalidateWorkspacePath } from "@/server/auth/revalidate-workspace";
 import { updateProjectSchema } from "../schemas/project-schema";
 import { updateProject } from "@/server/services/projects.service";
 
@@ -31,8 +32,8 @@ export async function updateProjectAction(
     budget: result.data.budget || undefined,
   });
 
-  revalidatePath("/projects");
-  revalidatePath(`/projects/${projectId}`);
+  await revalidateWorkspacePath("/projects");
+  await revalidateWorkspacePath(`/projects/${projectId}`);
 
-  redirect(`/projects/${projectId}`);
+  redirect(await workspacePath(`/projects/${projectId}`));
 }

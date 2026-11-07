@@ -15,15 +15,19 @@ type ProjectOption = {
 };
 
 type ClientActionPanelProps = {
+  role: "OWNER" | "MANAGER" | "STAFF";
   clientId: string;
   projects?: ProjectOption[];
 };
 
 export function ClientActionPanel({
+  role,
   clientId,
   projects = [],
 }: ClientActionPanelProps) {
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
+
+  if (role === "STAFF") return null;
 
   return (
     <section className="space-y-4">
@@ -44,7 +48,7 @@ export function ClientActionPanel({
           {activePanel === "project" ? "Close Project Form" : "Create Project"}
         </Button>
 
-        <Button
+{role === "OWNER" &&         <Button
           type="button"
           variant={activePanel === "invoice" ? "primary" : "secondary"}
           onClick={() =>
@@ -58,14 +62,14 @@ export function ClientActionPanel({
             <Plus className="h-4 w-4" />
           )}
           {activePanel === "invoice" ? "Close Invoice Form" : "Create Invoice"}
-        </Button>
+        </Button>}
       </div>
 
       {activePanel === "project" && (
         <CreateProjectForm clientId={clientId} forceOpen />
       )}
 
-      {activePanel === "invoice" && (
+      {role === "OWNER" && activePanel === "invoice" && (
         <CreateInvoiceForm
           clientId={clientId}
           projects={projects}

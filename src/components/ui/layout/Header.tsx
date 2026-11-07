@@ -80,7 +80,7 @@ export function Header({ workspace, user }: HeaderProps) {
               {initials}
             </div>
 
-            <UserButton />
+            <UserButton userProfileMode="navigation" userProfileUrl="/account" />
           </div>
         </div>
       </div>

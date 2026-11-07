@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter, usePathname } from "next/navigation";
 import { Command } from "cmdk";
 import {
   BriefcaseBusiness,
@@ -15,7 +16,9 @@ import { useQuickAdd } from "./QuickAddProvider";
 import { QuickTaskForm } from "./QuickTaskForm";
 import { QuickInvoiceForm } from "./QuickInvoiceForm";
 
-export function QuickAddDialog() {
+export function QuickAddDialog({ role }: { role: "OWNER" | "MANAGER" }) {
+  const router = useRouter();
+  const prefix = usePathname().match(/^\/w\/[^/]+/)?.[0] ?? "";
   const {
     isOpen,
     activeView,
@@ -84,13 +87,13 @@ export function QuickAddDialog() {
                   onSelect={() => setActiveView("task")}
                 />
 
-                <CommandItem
+                {role === "OWNER" && <CommandItem
                   icon={Receipt}
                   label="Create invoice"
                   keywords={["/invoice", "billing", "payment"]}
                   shortcut="/invoice"
                   onSelect={() => setActiveView("invoice")}
-                />
+                />}
 
                 <CommandItem
                   icon={UserPlus}
@@ -117,18 +120,18 @@ export function QuickAddDialog() {
                   label="Open projects"
                   keywords={["projects"]}
                   onSelect={() => {
-                    window.location.href = "/projects";
+                    router.push(`${prefix}/projects`);
                   }}
                 />
 
-                <CommandItem
+                {role === "OWNER" && <CommandItem
                   icon={FilePlus2}
                   label="Open invoices"
                   keywords={["invoices", "billing"]}
                   onSelect={() => {
-                    window.location.href = "/invoices";
+                    router.push(`${prefix}/invoices`);
                   }}
-                />
+                />}
               </Command.Group>
             </Command.List>
           </Command>
@@ -138,7 +141,7 @@ export function QuickAddDialog() {
           <QuickTaskForm onBack={() => setActiveView("root")} />
         )}
 
-        {activeView === "invoice" && (
+        {role === "OWNER" && activeView === "invoice" && (
           <QuickInvoiceForm clients={[]} onBack={() => setActiveView("root")} />
         )}
 

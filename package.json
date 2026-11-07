@@ -6,7 +6,19 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test:authorization": "node --env-file=.env --test tests/authorization.integration.cjs tests/identity.integration.cjs tests/proxy.test.cjs",
+    "test:status-controls": "node tests/status-controls.test.cjs",
+    "predev": "prisma generate",
+    "prebuild": "prisma generate",
+    "test:prisma-cache": "node tests/prisma-cache.test.cjs",
+    "test:auth-configuration": "node tests/auth-configuration.test.cjs",
+    "inspect:clerk-auth": "node --env-file=.env scripts/inspect-clerk-auth.cjs",
+    "test:commercial": "node --env-file=.env --test tests/commercial.integration.cjs",
+    "bootstrap:platform-admin": "node scripts/bootstrap-platform-admin.cjs",
+    "test:payments": "node --env-file=.env --test tests/paystack-vat.integration.cjs",
+    "check:environment-isolation": "node scripts/check-environment-isolation.cjs"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

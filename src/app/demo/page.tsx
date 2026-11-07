@@ -6,10 +6,6 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   BriefcaseBusiness,
-  Users,
-  CheckSquare,
-  Receipt,
-  Activity,
   ArrowRight,
   Sparkles,
   Play,
@@ -23,7 +19,6 @@ import {
   Monitor,
   Check,
   Loader2,
-  HelpCircle,
   Volume2,
 } from "lucide-react";
 
@@ -213,52 +208,38 @@ export default function DemoPage() {
   };
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("launch") === "true") {
-        setIsLaunching(true);
-      }
-    }
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("launch") !== "true") return;
+    const launchTimeout = setTimeout(() => setIsLaunching(true), 0);
+    return () => clearTimeout(launchTimeout);
   }, []);
 
   useEffect(() => {
     if (!isLaunching) return;
 
     let currentStepIndex = 0;
-    
-    // Set the first step to loading
-    setSteps((prev) =>
-      prev.map((step, idx) =>
-        idx === 0 ? { ...step, status: "loading" } : step
-      )
-    );
-
+    let redirectTimeout: ReturnType<typeof setTimeout> | undefined;
+    const updateSteps = (index: number) => {
+      setSteps(previous => previous.map((step, idx) => ({
+        ...step,
+        status: idx < index ? "completed" : idx === index ? "loading" : "pending",
+      })));
+    };
+    const startTimeout = setTimeout(() => updateSteps(0), 0);
     const interval = setInterval(() => {
-      setSteps((prev) => {
-        const next = [...prev];
-        
-        // Complete the current step
-        if (currentStepIndex < next.length) {
-          next[currentStepIndex].status = "completed";
-        }
-        
-        // Move to next step and set it to loading
-        currentStepIndex += 1;
-        if (currentStepIndex < next.length) {
-          next[currentStepIndex].status = "loading";
-        } else {
-          clearInterval(interval);
-          // Redirect to dashboard after a short delay
-          setTimeout(() => {
-            router.push("/dashboard");
-          }, 800);
-        }
-        
-        return next;
-      });
-    }, 450); // 450ms per step
+      currentStepIndex += 1;
+      updateSteps(currentStepIndex);
+      if (currentStepIndex >= 6) {
+        clearInterval(interval);
+        redirectTimeout = setTimeout(() => router.push("/dashboard"), 800);
+      }
+    }, 450);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(startTimeout);
+      clearInterval(interval);
+      clearTimeout(redirectTimeout);
+    };
   }, [isLaunching, router]);
 
   // Video progress simulated playback
@@ -515,7 +496,7 @@ export default function DemoPage() {
                 </h3>
                 
                 <p className="mt-4 text-xs leading-relaxed text-slate-300 italic border-l-2 border-blue-500/60 pl-3">
-                  "{tabData[activeTab].valueText}"
+                  &quot;{tabData[activeTab].valueText}&quot;
                 </p>
 
                 <div className="mt-6 space-y-4">
@@ -759,7 +740,7 @@ export default function DemoPage() {
                     <Quote className="absolute top-4 right-4 h-8 w-8 text-blue-500/10 pointer-events-none" />
                     
                     <p className="text-xs leading-relaxed text-slate-200 font-medium">
-                      "{test.quote}"
+                      &quot;{test.quote}&quot;
                     </p>
 
                     <div className="mt-6 pt-4 border-t border-slate-800/40 flex items-center gap-3">

@@ -36,8 +36,9 @@ export function WorkspaceOnboardingForm({
         </h1>
 
         <p className="mt-3 text-sm leading-relaxed text-slate-400">
-          Your workspace will contain your clients, projects, tasks, invoices,
-          and future team members.
+          Create a pending business account, then choose an approved subscription.
+          Operations and invitations unlock after commercial review, verified payment,
+          and platform activation. No automatic trial is started.
         </p>
       </div>
 

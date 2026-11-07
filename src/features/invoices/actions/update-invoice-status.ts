@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateWorkspacePath } from "@/server/auth/revalidate-workspace";
 import { updateInvoiceStatus } from "@/server/services/invoices.service";
 
 type InvoiceStatus = "DRAFT" | "SENT" | "PAID" | "OVERDUE" | "CANCELLED";
@@ -15,11 +15,11 @@ export async function updateInvoiceStatusAction(
     status,
   });
 
-  revalidatePath("/dashboard");
-  revalidatePath("/invoices");
+  await revalidateWorkspacePath("/dashboard");
+  await revalidateWorkspacePath("/invoices");
 
   for (const path of pathsToRevalidate) {
-    revalidatePath(path);
+    await revalidateWorkspacePath(path);
   }
 
   return {

@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateWorkspacePath } from "@/server/auth/revalidate-workspace";
 import { projectSchema } from "../schemas/project-schema";
 import { createProjectForClient } from "@/server/services/projects.service";
 
@@ -29,6 +29,6 @@ export async function createProjectAction(
     budget: result.data.budget || undefined,
   });
 
-  revalidatePath(`/clients/${clientId}`);
+  await revalidateWorkspacePath(`/clients/${clientId}`);
 
 }

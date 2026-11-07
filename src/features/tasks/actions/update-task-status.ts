@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateWorkspacePath } from "@/server/auth/revalidate-workspace";
 import { updateTaskStatus } from "@/server/services/tasks.service";
 
 type TaskStatus = "TODO" | "IN_PROGRESS" | "REVIEW" | "DONE";
@@ -15,8 +15,8 @@ export async function updateTaskStatusAction(
     status,
   });
 
-  revalidatePath(`/projects/${projectId}`);
-  revalidatePath("/tasks");
+  await revalidateWorkspacePath(`/projects/${projectId}`);
+  await revalidateWorkspacePath("/tasks");
 
   return {
     success: true,

@@ -18,22 +18,36 @@ model User {
   email      String  @unique
   imageUrl   String?
 
-  memberships WorkspaceMember[]
+  platformAdmin        PlatformAdmin?
+  subscriptionRequests SubscriptionRequest[] @relation("RequestSubmitter")
+  paymentSubmissions   SubscriptionPayment[] @relation("PaymentSubmitter")
+  legalAcceptances     LegalAcceptance[]
+  memberships          WorkspaceMember[]
+  auditLogs            AuditLog[]
+  sentInvitations      WorkspaceInvitation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Workspace {
-  id   String  @id @default(cuid())
-  name String
-  slug String? @unique
+  activationStatus     WorkspaceActivationStatus @default(PENDING_ACTIVATION)
+  activatedAt          DateTime?
+  subscriptionRequests SubscriptionRequest[]
+  paymentSubmissions   SubscriptionPayment[]
+  subscriptionPeriods  SubscriptionPeriod[]
+  id                   String                    @id @default(cuid())
+  name                 String
+  slug                 String?                   @unique
 
-  members  WorkspaceMember[]
-  clients  Client[]
-  projects Project[]
-  tasks    Task[]
-  invoices Invoice[]
+  subscription Subscription?
+  auditLogs    AuditLog[]
+  invitations  WorkspaceInvitation[]
+  members      WorkspaceMember[]
+  clients      Client[]
+  projects     Project[]
+  tasks        Task[]
+  invoices     Invoice[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -48,12 +62,18 @@ model WorkspaceMember {
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  role Role @default(STAFF)
+  role               Role             @default(STAFF)
+  status             MembershipStatus @default(ACTIVE)
+  jobTitle           String?
+  projectAssignments ProjectMember[]
+  assignedTasks      Task[]           @relation("TaskAssignee")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([userId, workspaceId])
+  @@unique([id, workspaceId])
+  @@index([workspaceId, status])
   @@index([userId])
   @@index([workspaceId])
 }
@@ -75,6 +95,7 @@ model Client {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([id, workspaceId])
   @@index([workspaceId])
   @@index([workspaceId, status])
 }
@@ -87,40 +108,47 @@ model Project {
   budget      Decimal?
   deadline    DateTime?
 
-  workspaceId String?
-  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   clientId String
-  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client   Client @relation(fields: [clientId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
 
-  tasks    Task[]
-  invoices Invoice[]
+  tasks          Task[]
+  projectMembers ProjectMember[]
+  invoices       Invoice[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([id, workspaceId])
   @@index([workspaceId])
   @@index([workspaceId, status])
   @@index([clientId])
 }
 
 model Task {
-  id          String     @id @default(cuid())
-  title       String
-  description String?
-  status      TaskStatus @default(TODO)
-  priority    Priority   @default(MEDIUM)
-  dueDate     DateTime?
+  assignedMemberId String?
+  assignee         WorkspaceMember? @relation("TaskAssignee", fields: [assignedMemberId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  teamVisible      Boolean          @default(false)
+  id               String           @id @default(cuid())
+  title            String
+  description      String?
+  status           TaskStatus       @default(TODO)
+  priority         Priority         @default(MEDIUM)
+  dueDate          DateTime?
 
-  workspaceId String?
-  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   projectId String
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project   Project @relation(fields: [projectId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([id, workspaceId])
+  @@index([workspaceId, assignedMemberId])
   @@index([workspaceId])
   @@index([workspaceId, status])
   @@index([workspaceId, dueDate])
@@ -134,18 +162,19 @@ model Invoice {
   amount    Decimal
   dueDate   DateTime?
 
-  workspaceId String?
-  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   clientId String
-  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client   Client @relation(fields: [clientId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
 
   projectId String?
-  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  project   Project? @relation(fields: [projectId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([id, workspaceId])
   @@index([workspaceId])
   @@index([workspaceId, status])
   @@index([workspaceId, dueDate])
@@ -191,4 +220,483 @@ enum Role {
   OWNER
   MANAGER
   STAFF
+}
+
+enum MembershipStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+model ProjectMember {
+  id          String          @id @default(cuid())
+  workspaceId String
+  projectId   String
+  project     Project         @relation(fields: [projectId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+  memberId    String
+  member      WorkspaceMember @relation(fields: [memberId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+  createdAt   DateTime        @default(now())
+
+  @@unique([projectId, memberId])
+  @@index([workspaceId, memberId])
+}
+
+model AuditLog {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  actorUserId  String?
+  actor        User?     @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  action       String
+  resourceType String
+  resourceId   String
+  metadata     Json?
+  createdAt    DateTime  @default(now())
+
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, resourceType, resourceId])
+}
+
+model WorkspaceInvitation {
+  id            String           @id @default(cuid())
+  workspaceId   String
+  workspace     Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  email         String
+  role          Role             @default(STAFF)
+  tokenHash     String           @unique
+  status        InvitationStatus @default(PENDING)
+  expiresAt     DateTime
+  inviterUserId String
+  inviter       User             @relation(fields: [inviterUserId], references: [id], onDelete: Restrict)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([workspaceId, email, status])
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+}
+
+model Subscription {
+  id                     String                @id @default(cuid())
+  workspaceId            String                @unique
+  workspace              Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  plan                   SubscriptionPlan      @default(STARTER)
+  status                 SubscriptionStatus    @default(PENDING_ACTIVATION)
+  providerCustomerId     String?               @unique
+  providerSubscriptionId String?               @unique
+  currentPeriodEnd       DateTime?
+  gracePeriodEnd         DateTime?
+  requests               SubscriptionRequest[]
+  periods                SubscriptionPeriod[]
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+
+  @@unique([id, workspaceId])
+}
+
+enum SubscriptionPlan {
+  SOLO
+  STARTER
+  BUSINESS
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  PENDING_ACTIVATION
+  SUSPENDED
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+model LegalAcceptance {
+  id                   String    @id @default(cuid())
+  userId               String
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  termsVersion         String
+  privacyVersion       String
+  termsUrl             String
+  privacyUrl           String
+  acceptedAt           DateTime  @default(now())
+  source               String    @default("COREOPS_EXPLICIT")
+  clerkLegalAcceptedAt DateTime?
+
+  @@unique([userId, termsVersion, privacyVersion])
+  @@index([userId, acceptedAt])
+}
+
+enum WorkspaceActivationStatus {
+  PENDING_ACTIVATION
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum BillingInterval {
+  MONTHLY
+  ANNUAL
+}
+
+enum SubscriptionRequestType {
+  INITIAL
+  RENEWAL
+  UPGRADE
+}
+
+enum CommercialRequestStatus {
+  SUBMITTED
+  QUOTED
+  AWAITING_PAYMENT
+  READY_FOR_ACTIVATION
+  ACTIVATED
+  REJECTED
+  CANCELLED
+}
+
+enum ManualPaymentMethod {
+  PAYSTACK
+  MPESA
+  BANK
+}
+
+enum PaymentSubmissionStatus {
+  SUBMITTED
+  RECONCILED
+  REJECTED
+}
+
+enum TaxTreatment {
+  UNCONFIRMED
+  INCLUSIVE
+  EXCLUSIVE
+  EXEMPT
+}
+
+enum PlatformRole {
+  SUPER_ADMIN
+  BILLING_ADMIN
+  SUPPORT
+}
+
+model PlatformAdmin {
+  id                 String                        @id @default(cuid())
+  userId             String                        @unique
+  user               User                          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  role               PlatformRole
+  active             Boolean                       @default(true)
+  createdAt          DateTime                      @default(now())
+  updatedAt          DateTime                      @updatedAt
+  auditEvents        PlatformAuditEvent[]
+  reviewedRequests   SubscriptionRequest[]         @relation("RequestReviewer")
+  overpaymentReviews SubscriptionRequest[]         @relation("OverpaymentReviewer")
+  taxConfigurations  TaxConfiguration[]
+  verifiedReceipts   SubscriptionPaymentReceipt[]
+  reversals          SubscriptionPaymentReversal[]
+  activatedPeriods   SubscriptionPeriod[]
+  approvedOffers     SubscriptionPlanOffer[]
+  verifiedAccounts   PaymentReceivingAccount[]
+}
+
+model PlatformAuditEvent {
+  id           String        @id @default(cuid())
+  actorAdminId String
+  actor        PlatformAdmin @relation(fields: [actorAdminId], references: [id], onDelete: Restrict)
+  action       String
+  resourceType String
+  resourceId   String
+  workspaceId  String?
+  reason       String
+  metadata     Json?
+  createdAt    DateTime      @default(now())
+
+  @@index([workspaceId, createdAt])
+  @@index([createdAt])
+}
+
+model SubscriptionPlanOffer {
+  id                  String                @id @default(cuid())
+  plan                SubscriptionPlan
+  interval            BillingInterval
+  version             Int
+  name                String
+  amount              Decimal?              @db.Decimal(18, 2)
+  currency            String                @default("KES")
+  memberLimit         Int?
+  projectLimit        Int?
+  invitationsEnabled  Boolean               @default(false)
+  features            Json
+  taxTreatment        TaxTreatment          @default(UNCONFIRMED)
+  published           Boolean               @default(false)
+  businessApprovedAt  DateTime?
+  businessApprovalRef String?
+  approvedById        String?
+  approvedBy          PlatformAdmin?        @relation(fields: [approvedById], references: [id], onDelete: Restrict)
+  requests            SubscriptionRequest[]
+  createdAt           DateTime              @default(now())
+
+  @@unique([plan, interval, version])
+}
+
+model PaymentReceivingAccount {
+  id                String                @id @default(cuid())
+  label             String
+  method            ManualPaymentMethod
+  currency          String                @default("KES")
+  accountIdentifier String
+  instructions      String
+  active            Boolean               @default(false)
+  verifiedAt        DateTime?
+  verifiedById      String?
+  verifiedBy        PlatformAdmin?        @relation(fields: [verifiedById], references: [id], onDelete: Restrict)
+  requests          SubscriptionRequest[]
+  submissions       SubscriptionPayment[]
+  createdAt         DateTime              @default(now())
+
+  @@unique([method, accountIdentifier])
+  @@unique([id, method, currency])
+}
+
+model SubscriptionRequest {
+  id                      String                   @id @default(cuid())
+  workspaceId             String
+  workspace               Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  subscriptionId          String
+  subscription            Subscription             @relation(fields: [subscriptionId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  submittedByUserId       String
+  submittedBy             User                     @relation("RequestSubmitter", fields: [submittedByUserId], references: [id], onDelete: Restrict)
+  offerId                 String
+  offer                   SubscriptionPlanOffer    @relation(fields: [offerId], references: [id], onDelete: Restrict)
+  type                    SubscriptionRequestType
+  status                  CommercialRequestStatus  @default(SUBMITTED)
+  idempotencyKey          String
+  payloadHash             String
+  plan                    SubscriptionPlan
+  interval                BillingInterval
+  offerVersion            Int
+  catalogAmount           Decimal?                 @db.Decimal(18, 2)
+  quotedAmount            Decimal?                 @db.Decimal(18, 2)
+  taxAmount               Decimal?                 @db.Decimal(18, 2)
+  payableAmount           Decimal?                 @db.Decimal(18, 2)
+  currency                String
+  memberLimit             Int?
+  projectLimit            Int?
+  invitationsEnabled      Boolean
+  features                Json
+  taxTreatment            TaxTreatment
+  approvedAt              DateTime?
+  reviewedById            String?
+  reviewedBy              PlatformAdmin?           @relation("RequestReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
+  reviewNotes             String?
+  quoteAcceptedAt         DateTime?
+  receivingAccountId      String?
+  receivingAccount        PaymentReceivingAccount? @relation(fields: [receivingAccountId], references: [id], onDelete: Restrict)
+  paymentInstructions     Json?
+  overpaymentReviewedAt   DateTime?
+  overpaymentReviewedById String?
+  overpaymentReviewedBy   PlatformAdmin?           @relation("OverpaymentReviewer", fields: [overpaymentReviewedById], references: [id], onDelete: Restrict)
+  overpaymentDisposition  String?
+  netAmount               Decimal?                 @db.Decimal(18, 2)
+  vatRate                 Decimal?                 @db.Decimal(7, 4)
+  taxSnapshot             Json?
+  payments                SubscriptionPayment[]
+  period                  SubscriptionPeriod?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+
+  @@unique([workspaceId, idempotencyKey])
+  @@unique([id, workspaceId])
+  @@unique([id, workspaceId, subscriptionId])
+  @@unique([id, workspaceId, receivingAccountId, currency])
+  @@index([status, createdAt])
+}
+
+model SubscriptionPayment {
+  id                  String                      @id @default(cuid())
+  workspaceId         String
+  workspace           Workspace                   @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  requestId           String
+  request             SubscriptionRequest         @relation(fields: [requestId, workspaceId, receivingAccountId, currency], references: [id, workspaceId, receivingAccountId, currency], onDelete: Restrict)
+  receivingAccountId  String
+  method              ManualPaymentMethod
+  currency            String
+  receivingAccount    PaymentReceivingAccount     @relation(fields: [receivingAccountId, method, currency], references: [id, method, currency], onDelete: Restrict)
+  submittedByUserId   String
+  submittedBy         User                        @relation("PaymentSubmitter", fields: [submittedByUserId], references: [id], onDelete: Restrict)
+  proposedAmount      Decimal                     @db.Decimal(18, 2)
+  submittedReference  String
+  normalizedReference String
+  idempotencyKey      String
+  payloadHash         String
+  status              PaymentSubmissionStatus     @default(SUBMITTED)
+  reviewNotes         String?
+  providerAttempt     PaystackAttempt?
+  receipt             SubscriptionPaymentReceipt?
+  createdAt           DateTime                    @default(now())
+
+  @@unique([requestId, idempotencyKey])
+  @@unique([id, workspaceId, requestId, receivingAccountId, method, currency])
+  @@index([status, createdAt])
+}
+
+model SubscriptionPaymentReceipt {
+  id                   String                       @id @default(cuid())
+  submissionId         String                       @unique
+  workspaceId          String
+  requestId            String
+  receivingAccountId   String
+  method               ManualPaymentMethod
+  currency             String
+  submission           SubscriptionPayment          @relation(fields: [submissionId, workspaceId, requestId, receivingAccountId, method, currency], references: [id, workspaceId, requestId, receivingAccountId, method, currency], onDelete: Restrict)
+  amount               Decimal                      @db.Decimal(18, 2)
+  transactionReference String
+  ledgerEntryId        String
+  receivedAt           DateTime
+  verifiedAt           DateTime                     @default(now())
+  verifiedById         String?
+  verifiedBy           PlatformAdmin?               @relation(fields: [verifiedById], references: [id], onDelete: Restrict)
+  confirmationSource   PaymentConfirmationSource    @default(MANUAL)
+  taxSnapshot          Json?
+  providerAttemptId    String?                      @unique
+  providerAttempt      PaystackAttempt?             @relation(fields: [providerAttemptId, submissionId, workspaceId, requestId, receivingAccountId, method, currency], references: [id, paymentId, workspaceId, requestId, receivingAccountId, method, currency], onDelete: Restrict)
+  verificationNotes    String
+  reversal             SubscriptionPaymentReversal?
+
+  @@unique([providerAttemptId, submissionId, workspaceId, requestId, receivingAccountId, method, currency])
+  @@unique([submissionId, workspaceId, requestId, receivingAccountId, method, currency])
+  @@unique([receivingAccountId, method, transactionReference])
+  @@unique([receivingAccountId, ledgerEntryId])
+  @@index([workspaceId, requestId])
+}
+
+model SubscriptionPaymentReversal {
+  id           String                     @id @default(cuid())
+  receiptId    String                     @unique
+  receipt      SubscriptionPaymentReceipt @relation(fields: [receiptId], references: [id], onDelete: Restrict)
+  actorAdminId String
+  actor        PlatformAdmin              @relation(fields: [actorAdminId], references: [id], onDelete: Restrict)
+  reason       String
+  reversedAt   DateTime                   @default(now())
+}
+
+model SubscriptionPeriod {
+  id                 String              @id @default(cuid())
+  workspaceId        String
+  workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  subscriptionId     String
+  subscription       Subscription        @relation(fields: [subscriptionId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  sourceRequestId    String              @unique
+  sourceRequest      SubscriptionRequest @relation(fields: [sourceRequestId, workspaceId, subscriptionId], references: [id, workspaceId, subscriptionId], onDelete: Restrict)
+  plan               SubscriptionPlan
+  interval           BillingInterval
+  startsAt           DateTime
+  endsAt             DateTime
+  graceEndsAt        DateTime
+  anchorDay          Int
+  memberLimit        Int
+  projectLimit       Int?
+  invitationsEnabled Boolean
+  features           Json
+  agreedAmount       Decimal             @db.Decimal(18, 2)
+  currency           String
+  activatedById      String
+  activatedBy        PlatformAdmin       @relation(fields: [activatedById], references: [id], onDelete: Restrict)
+  revokedAt          DateTime?
+  createdAt          DateTime            @default(now())
+
+  @@unique([sourceRequestId, workspaceId, subscriptionId])
+  @@index([workspaceId, startsAt, endsAt])
+}
+
+enum VatRegistrationStatus {
+  UNVERIFIED
+  NOT_REGISTERED
+  REGISTERED
+  DEREGISTERED
+}
+
+enum PaymentConfirmationSource {
+  MANUAL
+  PAYSTACK
+}
+
+enum PaystackMode {
+  test
+  live
+}
+
+enum PaystackAttemptStatus {
+  CREATED
+  INITIALIZED
+  CONFIRMED
+  REVIEW
+}
+
+enum PaymentEventStatus {
+  RECEIVED
+  PROCESSED
+  REVIEW
+}
+
+model TaxConfiguration {
+  id                    String                @id @default(cuid())
+  version               Int                   @unique
+  registrationStatus    VatRegistrationStatus
+  registrationReference String?
+  effectiveFrom         DateTime              @unique
+  rate                  Decimal               @db.Decimal(7, 4)
+  allowedTreatments     Json
+  approvalReference     String
+  approvedById          String
+  approvedBy            PlatformAdmin         @relation(fields: [approvedById], references: [id], onDelete: Restrict)
+  createdAt             DateTime              @default(now())
+}
+
+model PaystackAttempt {
+  id                    String                      @id @default(cuid())
+  paymentId             String                      @unique
+  workspaceId           String
+  requestId             String
+  receivingAccountId    String
+  method                ManualPaymentMethod         @default(PAYSTACK)
+  currency              String
+  payment               SubscriptionPayment         @relation(fields: [paymentId, workspaceId, requestId, receivingAccountId, method, currency], references: [id, workspaceId, requestId, receivingAccountId, method, currency], onDelete: Restrict)
+  mode                  PaystackMode
+  reference             String                      @unique
+  idempotencyKey        String
+  merchantId            String
+  keyFingerprint        String
+  expectedMinor         BigInt
+  providerTransactionId String?
+  status                PaystackAttemptStatus       @default(CREATED)
+  authorizationUrl      String?
+  lastError             String?
+  receipt               SubscriptionPaymentReceipt?
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+
+  @@unique([workspaceId, idempotencyKey])
+  @@unique([paymentId, workspaceId, requestId, receivingAccountId, method, currency])
+  @@unique([mode, merchantId, providerTransactionId])
+  @@unique([id, paymentId, workspaceId, requestId, receivingAccountId, method, currency])
+  @@index([status, createdAt])
+}
+
+model PaystackWebhookEvent {
+  id          String             @id @default(cuid())
+  mode        PaystackMode
+  eventHash   String
+  reference   String?
+  eventType   String
+  status      PaymentEventStatus @default(RECEIVED)
+  failureCode String?
+  createdAt   DateTime           @default(now())
+  processedAt DateTime?
+
+  @@unique([mode, eventHash])
+  @@index([status, createdAt])
 }

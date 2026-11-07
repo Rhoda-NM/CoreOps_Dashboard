@@ -1,10 +1,11 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 
 export function TaskFilters() {
   const router = useRouter();
+  const workspacePrefix = usePathname().match(/^\/w\/[^/]+/)?.[0] ?? "";
   const searchParams = useSearchParams();
 
   const currentQuery = searchParams.get("query") || "";
@@ -21,7 +22,7 @@ export function TaskFilters() {
       params.set(key, value);
     }
 
-    router.push(`/tasks?${params.toString()}`);
+    router.push(`${workspacePrefix}/tasks?${params.toString()}`);
   }
 
   return (

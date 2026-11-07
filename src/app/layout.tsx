@@ -2,6 +2,7 @@
 
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
+import { getAuthConfiguration } from "@/config/auth";
 
 import "./globals.css";
 
@@ -17,10 +18,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
-      <html lang="en">
-        <body>{children}</body>
-      </html>
-    </ClerkProvider>
+    <html lang="en">
+      <body><ClerkProvider telemetry={false} supportEmail={getAuthConfiguration().supportEmail} appearance={{ options: { helpPageUrl: "/auth-help", termsPageUrl: "/terms", privacyPageUrl: "/privacy" } }} signInUrl="/sign-in" signUpUrl="/sign-up" signInFallbackRedirectUrl="/dashboard" signUpFallbackRedirectUrl="/onboarding">{children}</ClerkProvider></body>
+    </html>
   );
 }

@@ -1,12 +1,5 @@
 import { SignIn } from "@clerk/nextjs";
-
+import { AuthShell } from "@/components/auth/AuthShell";
 export default function SignInPage() {
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-[#0B101D] px-6">
-      <SignIn
-        fallbackRedirectUrl="/dashboard"
-        signUpUrl="/sign-up"
-      />
-    </main>
-  );
+  return <AuthShell><SignIn path="/sign-in" routing="path" fallbackRedirectUrl="/dashboard" signUpFallbackRedirectUrl="/onboarding" signUpUrl="/sign-up" appearance={{ variables: { colorPrimary: "#6366F1" } }} /></AuthShell>;
 }

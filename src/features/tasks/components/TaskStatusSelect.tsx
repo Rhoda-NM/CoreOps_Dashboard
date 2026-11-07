@@ -6,12 +6,14 @@ import { updateTaskStatusAction } from "../actions/update-task-status";
 type TaskStatus = "TODO" | "IN_PROGRESS" | "REVIEW" | "DONE";
 
 type TaskStatusSelectProps = {
+  disabled?: boolean;
   projectId: string;
   taskId: string;
   currentStatus: TaskStatus;
 };
 
 export function TaskStatusSelect({
+  disabled = false,
   projectId,
   taskId,
   currentStatus,
@@ -21,8 +23,8 @@ export function TaskStatusSelect({
   function handleChange(event: React.ChangeEvent<HTMLSelectElement>) {
     const nextStatus = event.target.value as TaskStatus;
 
-    startTransition(() => {
-      updateTaskStatusAction(projectId, taskId, nextStatus);
+    startTransition(async () => {
+      await updateTaskStatusAction(projectId, taskId, nextStatus);
     });
   }
 
@@ -30,7 +32,7 @@ export function TaskStatusSelect({
     <select
       defaultValue={currentStatus}
       onChange={handleChange}
-      disabled={isPending}
+      disabled={disabled || isPending}
       className="rounded-lg border border-core-border bg-core-surface px-2.5 py-1.5 text-xs font-medium text-core-text outline-none transition focus:border-core-primary focus:ring-2 focus:ring-core-primary/30 disabled:opacity-60"
     >
       <option value="TODO">TODO</option>

@@ -21,8 +21,8 @@ export function InvoiceStatusSelect({
   function handleChange(event: React.ChangeEvent<HTMLSelectElement>) {
     const nextStatus = event.target.value as InvoiceStatus;
 
-    startTransition(() => {
-      updateInvoiceStatusAction(invoiceId, nextStatus, pathsToRevalidate);
+    startTransition(async () => {
+      await updateInvoiceStatusAction(invoiceId, nextStatus, pathsToRevalidate);
     });
   }
 

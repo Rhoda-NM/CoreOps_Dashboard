@@ -1,0 +1,4 @@
+import Link from "next/link";
+export default function PlatformAccessDenied() {
+  return <main className="mx-auto max-w-xl space-y-5 px-6 py-20 text-core-text"><h1 className="text-3xl font-semibold">Platform access unavailable</h1><p className="text-core-text-secondary">An active, explicitly provisioned administrator identity and recent multi-factor verification are required. Signing in does not create an administrator account.</p><p className="text-core-text-secondary">If you are an administrator, complete MFA through Clerk and sign in again. For recovery, contact the platform operator. Customer workspace ownership does not grant platform access.</p><div className="flex flex-wrap gap-5 text-indigo-300"><Link href="/dashboard">My workspaces</Link><Link href="/account">Account security & recovery</Link><Link href="/platform/sign-in">Administrator sign in</Link></div></main>;
+}

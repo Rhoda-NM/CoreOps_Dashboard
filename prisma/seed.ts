@@ -33,6 +33,7 @@ async function main() {
     },
     create: {
       id: "coreops-studio",
+      slug: "coreops-studio",
       name: "CoreOps Studio",
       members: {
         create: {

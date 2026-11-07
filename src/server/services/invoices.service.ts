@@ -1,12 +1,14 @@
+import { requirePermission, workspaceMutation, audit } from "../authorization/authorize";
+import { AccessError } from "../authorization/errors";
+import { z } from "zod";
 import { prisma } from "@/server/db/prisma";
-import { getCurrentWorkspaceId } from "@/server/auth/get-current-workspace";
 
 export async function getInvoices(filters?: {
   query?: string;
   status?: "DRAFT" | "SENT" | "PAID" | "OVERDUE" | "CANCELLED" | "ALL";
   filter?: "all" | "outstanding" | "overdue";
 }) {
-  const workspaceId = await getCurrentWorkspaceId();
+  const { workspaceId } = await requirePermission("invoices:read");
 
   const now = new Date();
 
@@ -90,77 +92,21 @@ export async function getInvoices(filters?: {
 }
 
 
-export async function createInvoiceForClient(data: {
-  clientId: string;
-  projectId?: string;
-  invoiceNo: string;
-  amount: string;
-  dueDate?: string;
-  status?: "DRAFT" | "SENT" | "PAID" | "OVERDUE" | "CANCELLED";
-}) {
-  const workspaceId = await getCurrentWorkspaceId();
-
-  const client = await prisma.client.findFirst({
-    where: {
-      id: data.clientId,
-      workspaceId,
-    },
-    include: {
-      projects: true,
-    },
-  });
-
-  if (!client) {
-    throw new Error("Client not found");
-  }
-
-  if (data.projectId) {
-    const projectBelongsToClient = client.projects.some(
-      (project) => project.id === data.projectId
-    );
-
-    if (!projectBelongsToClient) {
-      throw new Error("Project does not belong to this client");
-    }
-  }
-
-  return prisma.invoice.create({
-    data: {
-      clientId: data.clientId,
-      projectId: data.projectId || null,
-      invoiceNo: data.invoiceNo,
-      amount: data.amount,
-      dueDate: data.dueDate ? new Date(data.dueDate) : null,
-      status: data.status || "SENT",
-    },
+export async function createInvoiceForClient(data: { clientId: string; projectId?: string; invoiceNo: string; amount: string; dueDate?: string; status?: "DRAFT" | "SENT" | "PAID" | "OVERDUE" | "CANCELLED" }) {
+  return workspaceMutation("invoices:create", async (tx, member) => {
+    const client = await tx.client.findFirst({ where: { id: data.clientId, workspaceId: member.workspaceId } });
+    if (!client) throw new AccessError("NOT_FOUND");
+    if (data.projectId && !await tx.project.findFirst({ where: { id: data.projectId, clientId: client.id, workspaceId: member.workspaceId } })) throw new AccessError("NOT_FOUND");
+    const invoice = await tx.invoice.create({ data: { clientId: client.id, projectId: data.projectId || null, workspaceId: member.workspaceId, invoiceNo: data.invoiceNo, amount: data.amount, dueDate: data.dueDate ? new Date(data.dueDate) : null, status: data.status || "SENT" } });
+    await audit(tx, member, "INVOICE_CREATED", "Invoice", invoice.id);
+    return invoice;
   });
 }
-
-export async function updateInvoiceStatus(data: {
-  invoiceId: string;
-  status: "DRAFT" | "SENT" | "PAID" | "OVERDUE" | "CANCELLED";
-}) {
-  const workspaceId = await getCurrentWorkspaceId();
-
-  const invoice = await prisma.invoice.findFirst({
-    where: {
-      id: data.invoiceId,
-      client: {
-        workspaceId,
-      },
-    },
-  });
-
-  if (!invoice) {
-    throw new Error("Invoice not found");
-  }
-
-  return prisma.invoice.update({
-    where: {
-      id: data.invoiceId,
-    },
-    data: {
-      status: data.status,
-    },
+export async function updateInvoiceStatus(data: { invoiceId: string; status: "DRAFT" | "SENT" | "PAID" | "OVERDUE" | "CANCELLED" }) {
+  return workspaceMutation("invoices:update", async (tx, member) => {
+    const status = z.enum(["DRAFT", "SENT", "PAID", "OVERDUE", "CANCELLED"]).parse(data.status);
+    const invoice = await tx.invoice.update({ where: { id: data.invoiceId, workspaceId: member.workspaceId }, data: { status } });
+    await audit(tx, member, "INVOICE_STATUS_UPDATED", "Invoice", invoice.id, { status });
+    return invoice;
   });
 }

@@ -1,0 +1,176 @@
+import { getClients } from "@/server/services/clients.service";
+import { ClientForm } from "@/features/clients/components/ClientForm";
+import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/shared/EmptyState";
+import { Users } from "lucide-react";
+import { ClickableRow } from "@/components/ui/ClickableRow";
+import { ClientFilters } from "@/features/clients/components/ClientFilters";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/Table";
+
+type ClientsPageProps = {
+  searchParams: Promise<{
+    query?: string;
+    status?: string;
+  }>;
+};
+
+export default async function ClientsPage({ searchParams }: ClientsPageProps) {
+  const params = await searchParams;
+
+  const status =
+    params.status === "ARCHIVED" || params.status === "ALL"
+      ? params.status
+      : "ACTIVE";
+
+  const clients = await getClients({
+    query: params.query,
+    status,
+  });
+  // existing return...
+
+  return (
+    <main className="space-y-10">
+      <div>
+        <h1 className="text-3xl font-semibold tracking-tight text-core-text">
+          Clients
+        </h1>
+        <p className="mt-1 text-sm text-core-text-secondary">
+          Manage your agency clients and business relationships.
+        </p>
+      </div>
+
+      <ClientForm />
+      <section className="space-y-4">
+        <div className="flex flex-col gap-4">
+          <h2 className="text-lg font-semibold text-core-text">Client Records</h2>
+          <ClientFilters />
+        </div>
+
+        {clients.length === 0 ? (
+          <EmptyState
+            icon={<Users className="h-6 w-6" />}
+            title="No clients yet"
+            description="Add your first client to start managing your agency operations."
+          />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Company</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+
+            <TableBody>
+              {clients.map((client) => (
+                <ClickableRow
+                  key={client.id}
+                  href={`/clients/${client.id}`}
+                >
+                  <TableCell className="font-medium text-core-text">
+                    {client.name}
+                  </TableCell>
+                  <TableCell>{client.company || "—"}</TableCell>
+                  <TableCell>{client.email || "—"}</TableCell>
+                  <TableCell>
+                    <Badge variant={client.status === "ARCHIVED" ? "muted" : "success"}>
+                      {client.status}
+                    </Badge>
+                  </TableCell>
+                </ClickableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </section>
+    </main>
+  );
+}
+
+{/*import { getClients } from "@/server/services/clients.service";
+import { ClientForm } from "@/features/clients/components/ClientForm";
+import { Badge } from "@/components/ui/Badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/Table";
+import { PageHeader } from "@/components/ui/shared/PageHeader";
+import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/shared/EmptyState";
+import { ClickableRow } from "@/components/ui/ClickableRow";
+import { Users } from "lucide-react";
+import Link from "@/components/workspaces/WorkspaceLink";
+import { LinkIcon } from "lucide-react";
+
+export default async function ClientsPage() {
+  const clients = await getClients();
+
+  return (
+    <main className="space-y-10">
+      <PageHeader
+        title="Clients"
+        description="Manage your agency clients and business relationships."
+        
+      />
+
+      <section>
+        <ClientForm />
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold text-core-text">Client Records</h2>
+
+        {clients.length === 0 ? (
+          <EmptyState
+            icon={<Users className="h-6 w-6" />}
+            title="No clients yet"
+            description="Add your first client to start managing your agency operations."
+          />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Company</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+
+            <TableBody>
+              {clients.map((client) => (
+                <ClickableRow
+                  key={client.id}
+                  href={`/clients/${client.id}`}
+                >
+                  <TableCell className="font-medium text-core-text"> 
+                        {client.name}
+                  </TableCell>
+
+                  <TableCell>{client.company || "—"}</TableCell>
+                  <TableCell>{client.email || "—"}</TableCell>
+                  <TableCell>
+                    <Badge variant="success">{client.status}</Badge>
+                  </TableCell>
+                </ClickableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </section>
+    </main>
+  );
+}*/}

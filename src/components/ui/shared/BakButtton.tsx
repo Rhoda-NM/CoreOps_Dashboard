@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 type BackButtonProps = {
@@ -13,12 +13,13 @@ export function BackButton({
   fallbackHref = "/projects",
 }: BackButtonProps) {
   const router = useRouter();
+  const workspacePrefix = usePathname().match(/^\/w\/[^/]+/)?.[0] ?? "";
 
   function handleBack() {
     if (window.history.length > 1) {
       router.back();
     } else {
-      router.push(fallbackHref);
+      router.push(`${workspacePrefix}${fallbackHref}`);
     }
   }
 

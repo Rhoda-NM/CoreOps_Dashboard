@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateWorkspacePath } from "@/server/auth/revalidate-workspace";
 import { clientSchema } from "../schemas/client-schema";
 import { createClient } from "@/server/services/clients.service";
 
@@ -25,6 +25,6 @@ export async function createClientAction(formData: FormData): Promise<void> {
     phone: result.data.phone || undefined,
   });
 
-  revalidatePath("/clients");
-  revalidatePath("/dashboard");
+  await revalidateWorkspacePath("/clients");
+  await revalidateWorkspacePath("/dashboard");
 }

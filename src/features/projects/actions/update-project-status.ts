@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateWorkspacePath } from "@/server/auth/revalidate-workspace";
 import { updateProjectStatus } from "@/server/services/projects.service";
 
 type ProjectStatus = "ACTIVE" | "COMPLETED" | "PAUSED" | "CANCELLED";
@@ -15,10 +15,10 @@ export async function updateProjectStatusAction(
     status,
   });
 
-  revalidatePath("/dashboard");
-  revalidatePath("/projects");
+  await revalidateWorkspacePath("/dashboard");
+  await revalidateWorkspacePath("/projects");
 
   for (const path of pathsToRevalidate) {
-    revalidatePath(path);
+    await revalidateWorkspacePath(path);
   }
 }

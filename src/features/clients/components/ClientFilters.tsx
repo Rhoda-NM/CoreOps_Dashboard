@@ -1,10 +1,11 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 
 export function ClientFilters() {
   const router = useRouter();
+  const workspacePrefix = usePathname().match(/^\/w\/[^/]+/)?.[0] ?? "";
   const searchParams = useSearchParams();
 
   const currentQuery = searchParams.get("query") || "";
@@ -19,7 +20,7 @@ export function ClientFilters() {
       params.set(key, value);
     }
 
-    router.push(`/clients?${params.toString()}`);
+    router.push(`${workspacePrefix}/clients?${params.toString()}`);
   }
 
   return (

@@ -21,8 +21,8 @@ export function ProjectStatusSelect({
   function handleChange(event: React.ChangeEvent<HTMLSelectElement>) {
     const nextStatus = event.target.value as ProjectStatus;
 
-    startTransition(() => {
-      updateProjectStatusAction(projectId, nextStatus, pathsToRevalidate);
+    startTransition(async () => {
+      await updateProjectStatusAction(projectId, nextStatus, pathsToRevalidate);
     });
   }
 
