@@ -32,3 +32,8 @@ button, a, input, select, textarea, summary { -webkit-tap-highlight-color: trans
 .sample-grid { background-image: linear-gradient(#DCE5DE80 1px, transparent 1px), linear-gradient(90deg, #DCE5DE80 1px, transparent 1px); background-size: 36px 36px; }
 @media (min-width: 640px) { .site-container { width: min(100% - 4rem, 1200px); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+
+/* Customer authentication only; platform/account components retain their theme. */
+.auth-page { --focus-ring: #147165; }
+.auth-intro { background-image: radial-gradient(ellipse at 110% 0%, #2B786A66, transparent 60%), radial-gradient(ellipse at 0% 110%, #21665B66, transparent 60%); }
+.auth-form input::placeholder { color: #687D75; opacity: 1; }
