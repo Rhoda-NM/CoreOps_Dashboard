@@ -1,4 +1,5 @@
 import "server-only";
+import { pay1Enabled } from "../preview/pay1-config";
 import { requestRoutingContext } from "../routing/request-context";
 import { centralUrl } from "@/lib/routing/host-policy";
 import { authReturnForPath, safeAuthReturn } from "@/lib/routing/navigation";
@@ -12,6 +13,13 @@ import { requireLegalRehearsal } from "../legal/config";
 import { hasCurrentSyntheticLegalReceipt } from "../legal/acceptance";
 
 export async function requireCurrentLegalReceipt(userId: string) {
+  if (pay1Enabled()) {
+    const { requirePay1Actor } = await import("../preview/pay1-admission");
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { externalId: true } });
+    if (!user?.externalId) throw new IdentityError("ACCOUNT_UNAVAILABLE");
+    await requirePay1Actor(user.externalId);
+    return; // Explicit synthetic testing exception; no legal receipt is created.
+  }
   if (process.env.COREOPS_LEGAL_CATALOG_REHEARSAL_ENABLED === "true") {
     requireLegalRehearsal();
     if (!await hasCurrentSyntheticLegalReceipt(userId)) {
@@ -32,7 +40,7 @@ export async function requireCurrentLegalReceipt(userId: string) {
 }
 
 export async function recordLegalAcceptance(accepted: boolean, expected: { termsVersion: string; privacyVersion: string }) {
-  if (process.env.COREOPS_LEGAL_CATALOG_REHEARSAL_ENABLED === "true") throw new IdentityError("LEGAL_ACCEPTANCE_REQUIRED");
+  if (pay1Enabled() || process.env.COREOPS_LEGAL_CATALOG_REHEARSAL_ENABLED === "true") throw new IdentityError("LEGAL_ACCEPTANCE_REQUIRED");
   const config = getAuthConfiguration();
   if (!config.legalReady || accepted !== true || expected.termsVersion !== config.termsVersion || expected.privacyVersion !== config.privacyVersion) throw new IdentityError("LEGAL_ACCEPTANCE_REQUIRED");
   const profile = await requireClerkIdentity();

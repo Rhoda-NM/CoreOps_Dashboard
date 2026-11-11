@@ -38,7 +38,8 @@
     "test:privacy-invoices": "node --env-file=.env scripts/with-commercial-rehearsal.cjs node tests/privacy-invoice.integration.cjs",
     "test:market": "node --env-file=.env scripts/with-commercial-rehearsal.cjs node tests/market.integration.cjs",
     "test:legal-evidence": "node --env-file=.env scripts/with-commercial-rehearsal.cjs node tests/legal-evidence.integration.cjs",
-    "test:pay1-preview": "node tests/pay1-preview.test.cjs"
+    "test:pay1-preview": "node tests/pay1-preview.test.cjs",
+    "test:pay1-registration": "node tests/pay1-registration.test.cjs"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

@@ -1,4 +1,5 @@
 import "server-only";
+import { pay1Enabled } from "../preview/pay1-config";
 import { getAuthConfiguration } from "@/config/auth";
 import { registrationRequirements, type ClerkPublicConfiguration } from "@/lib/auth/registration-readiness";
 
@@ -16,6 +17,17 @@ export async function readClerkConfiguration(): Promise<ClerkPublicConfiguration
 }
 
 export async function isRegistrationReady() {
+  if (pay1Enabled()) {
+    // Synthetic preview registration is not approval of public customer documents.
+    // Before a Clerk ID exists, only the target/window can be checked; application
+    // provisioning still independently requires the explicit actor allowlist.
+    try {
+      const { requirePay1Admission } = await import("../preview/pay1-admission");
+      await requirePay1Admission();
+      const remote = await readClerkConfiguration();
+      return remote?.user_settings?.actions?.delete_self === false;
+    } catch { return false; }
+  }
   const config = getAuthConfiguration();
   if (!config.requireLegal) return true; // Development only; not a consent claim.
   if (!config.legalReady || !config.googleScopesReviewed || !config.supportEmail) return false;

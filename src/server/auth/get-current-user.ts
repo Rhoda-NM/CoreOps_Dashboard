@@ -1,4 +1,5 @@
 import "server-only";
+import { pay1Enabled } from "../preview/pay1-config";
 import { cache } from "react";
 import { prisma } from "@/server/db/prisma";
 import { getAuthConfiguration } from "@/config/auth";
@@ -16,7 +17,9 @@ export const getCurrentUser = cache(async () => {
   const emailOwner = await prisma.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } }, select: { id: true, externalId: true } });
   if (emailOwner && emailOwner.externalId !== externalId) throw new IdentityError("IDENTITY_CONFLICT");
   if (!existing && getAuthConfiguration().requireLegal) {
-    if (!profile.legalAcceptedAt || !await isRegistrationReady()) throw new IdentityError("LEGAL_ACCEPTANCE_REQUIRED");
+    if (pay1Enabled()) {
+      if (!await isRegistrationReady()) throw new IdentityError("LEGAL_ACCEPTANCE_REQUIRED");
+    } else if (!profile.legalAcceptedAt || !await isRegistrationReady()) throw new IdentityError("LEGAL_ACCEPTANCE_REQUIRED");
   }
   const data = { email, name: [profile.firstName, profile.lastName].filter(Boolean).join(" ") || null, imageUrl: profile.imageUrl };
   if (existing && existing.email === data.email && existing.name === data.name && existing.imageUrl === data.imageUrl) {
@@ -25,6 +28,10 @@ export const getCurrentUser = cache(async () => {
   }
   try {
     const user = await prisma.$transaction(async transaction => {
+      if (pay1Enabled()) {
+        const { requirePay1Actor } = await import("../preview/pay1-admission");
+        await requirePay1Actor(externalId, transaction);
+      }
       const user = await transaction.user.upsert({ where: { externalId }, update: data, create: { externalId, ...data } });
       if (existing && existing.email !== data.email) {
         const memberships = await transaction.workspaceMember.findMany({ where: { userId: user.id }, select: { workspaceId: true } });
