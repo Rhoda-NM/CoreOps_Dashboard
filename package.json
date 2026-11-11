@@ -23,7 +23,22 @@
     "test:marketing-availability": "node tests/marketing-availability.test.cjs",
     "test:navigation": "node tests/navigation.test.cjs",
     "test:host-policy": "node tests/host-policy.test.cjs",
-    "audit:workspace-hostnames": "node --env-file=.env scripts/audit-workspace-hostnames.cjs"
+    "audit:workspace-hostnames": "node --env-file=.env scripts/audit-workspace-hostnames.cjs",
+    "test:lifecycle-policy": "node tests/lifecycle-policy.test.cjs",
+    "test:lifecycle": "node --env-file=.env tests/lifecycle.integration.cjs",
+    "audit:workspace-lifecycle": "node --env-file=.env scripts/audit-workspace-lifecycle.cjs",
+    "test:data-access": "node --env-file=.env tests/data-access.integration.cjs",
+    "test:export-format": "node tests/export-format.test.cjs",
+    "test:notifications": "node --env-file=.env tests/notifications.integration.cjs",
+    "test:notification-simulation": "node --env-file=.env tests/notification-simulation.integration.cjs",
+    "test:notification-resend": "node --env-file=.env scripts/with-commercial-rehearsal.cjs node tests/notification-resend.integration.cjs",
+    "build:notification-benchmark": "node scripts/build-notification-benchmark.cjs",
+    "test:export-availability": "node --env-file=.env scripts/with-commercial-rehearsal.cjs node tests/data-access.integration.cjs",
+    "test:privacy-errors": "node tests/privacy-errors.test.cjs",
+    "test:privacy-invoices": "node --env-file=.env scripts/with-commercial-rehearsal.cjs node tests/privacy-invoice.integration.cjs",
+    "test:market": "node --env-file=.env scripts/with-commercial-rehearsal.cjs node tests/market.integration.cjs",
+    "test:legal-evidence": "node --env-file=.env scripts/with-commercial-rehearsal.cjs node tests/legal-evidence.integration.cjs",
+    "test:pay1-preview": "node tests/pay1-preview.test.cjs"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -41,6 +56,7 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "recharts": "^3.8.1",
+    "svix": "2.10.0",
     "tailwind": "^4.0.0",
     "tailwind-merge": "^3.5.0",
     "zod": "^4.3.6"
@@ -52,6 +68,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.5.0",
+    "esbuild": "0.28.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "postcss": "^8.5.12",

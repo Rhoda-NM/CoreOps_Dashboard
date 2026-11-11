@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { marketRehearsalAvailable } from "@/server/market/config";
+import { simulationAvailable } from "@/server/notifications/simulation-admin";
+import { dataAccessEnabled } from "@/server/data-access/security";
 import { redirect } from "next/navigation";
 import { requirePlatform, platformCan, platformEntry } from "@/server/commercial/platform-auth";
 export const dynamic = "force-dynamic";
@@ -8,5 +11,5 @@ export default async function PlatformLayout({ children }: { children: React.Rea
   if (!entry.admin || !entry.mfa) redirect("/platform/access-denied");
   const admin = await requirePlatform();
   const links = [["", "Overview", "directory"], ["workspaces", "Subscribers", "directory"], ["requests", "Requests", "billing"], ["payments", "Payments", "billing"], ["history", "Periods", "billing"], ["offers", "Plans & accounts", "catalog"], ["tax", "VAT configuration", "catalog"], ["audit", "Audit", "audit"], ["security", "Security", "directory"]] as const;
-  return <main className="min-h-screen bg-core-bg px-5 py-8 text-core-text"><div className="mx-auto max-w-7xl space-y-8"><header className="space-y-4 border-b border-core-border pb-6"><div className="flex flex-wrap justify-between gap-4"><Link className="text-xl font-semibold" href="/platform">WorkflowConnect · Platform administration</Link><span className="text-sm text-core-muted">{admin.role} · MFA required</span></div><nav aria-label="Platform navigation" className="flex flex-wrap gap-5 text-sm">{links.filter(([, , permission]) => platformCan(admin.role, permission)).map(([path,label]) => <Link key={path} href={`/platform/${path}`}>{label}</Link>)}<Link href="/dashboard">My workspaces</Link></nav></header>{children}</div></main>;
+  return <main className="min-h-screen bg-core-bg px-5 py-8 text-core-text"><div className="mx-auto max-w-7xl space-y-8"><header className="space-y-4 border-b border-core-border pb-6"><div className="flex flex-wrap justify-between gap-4"><Link className="text-xl font-semibold" href="/platform">WorkflowConnect · Platform administration</Link><span className="text-sm text-core-muted">{admin.role} · MFA required</span></div><nav aria-label="Platform navigation" className="flex flex-wrap gap-5 text-sm">{links.filter(([, , permission]) => platformCan(admin.role, permission)).map(([path,label]) => <Link key={path} href={`/platform/${path}`}>{label}</Link>)}{dataAccessEnabled() && platformCan(admin.role, "activate") && <Link href="/platform/recovery">Recovery review</Link>}{simulationAvailable() && platformCan(admin.role,"audit") && <Link href="/platform/notifications">Notifications</Link>}{marketRehearsalAvailable() && platformCan(admin.role,"activate") && <Link href="/platform/market">Market review</Link>}<Link href="/dashboard">My workspaces</Link></nav></header>{children}</div></main>;
 }

@@ -32,7 +32,8 @@ test('draft legal content, disclosures and production configuration fail closed'
     for (const Page of [TermsPage, PrivacyPage]) {
       const html = renderToStaticMarkup(createElement(Page));
       assert.match(html, /Draft — not legally approved/);
-      assert.match(html, /Pending finalization/);
+      assert.match(html, /To be confirmed after approval/);
+      assert.match(html, /Draft 0.1/);
       assert.match(html, /Stravect Systems/);
     }
     const disclosure = renderToStaticMarkup(createElement(AuthShell, { registering: true }, createElement('div', null, 'Clerk boundary')));
@@ -66,4 +67,39 @@ test('draft legal content, disclosures and production configuration fail closed'
     globalThis.fetch = originalFetch;
     Module._load = load;
   }
+});
+
+test('operator diagnostics and the server gate enforce every registration requirement', async () => {
+  const { registrationRequirements } = require('../src/lib/auth/registration-readiness.ts');
+  const config = { ...getAuthConfiguration(), legalReady: true, googleScopesReviewed: true, supportEmail: 'support@example.test', termsUrl: 'https://preview.example.test/terms', privacyUrl: 'https://preview.example.test/privacy' };
+  const remote = { display_config: { application_name: 'WorkflowConnect', support_email: config.supportEmail, terms_url: config.termsUrl, privacy_policy_url: config.privacyUrl }, user_settings: { sign_up: { legal_consent_enabled: true }, actions: { delete_self: false } } };
+  assert.equal(registrationRequirements(config, remote).ready, true);
+  const cases = [
+    ['legal_versions_effective', { ...config, legalReady: false }, remote],
+    ['google_scope_review', { ...config, googleScopesReviewed: false }, remote],
+    ['support_address', { ...config, supportEmail: undefined }, remote],
+    ['clerk_environment_available', config, null],
+    ['clerk_express_consent', config, { ...remote, user_settings: { ...remote.user_settings, sign_up: {} } }],
+    ['clerk_terms_url', config, { ...remote, display_config: { ...remote.display_config, terms_url: 'https://wrong.example.test/terms' } }],
+    ['clerk_privacy_url', config, { ...remote, display_config: { ...remote.display_config, privacy_policy_url: 'https://wrong.example.test/privacy' } }],
+    ['clerk_branding', config, { ...remote, display_config: { ...remote.display_config, application_name: 'My Application' } }],
+    ['clerk_support_address', config, { ...remote, display_config: { ...remote.display_config, support_email: 'other@example.test' } }],
+    ['clerk_self_deletion_disabled', config, { ...remote, user_settings: { ...remote.user_settings, actions: {} } }],
+  ];
+  for (const [id, local, provider] of cases) {
+    const report = registrationRequirements(local, provider);
+    assert.equal(report.ready, false, id);
+    assert.equal(report.checks.find(check => check.id === id).passed, false, id);
+  }
+});
+
+test('inspector rejects a different instance before any network request and never echoes keys', () => {
+  const { spawnSync } = require('node:child_process');
+  const publishable = 'pk_test_' + Buffer.from('fixture.clerk.accounts.dev$').toString('base64');
+  const result = spawnSync(process.execPath, ['scripts/inspect-clerk-auth.cjs', '--expected-host', 'other.clerk.accounts.dev'], { cwd: path.resolve(__dirname, '..'), encoding: 'utf8', env: { ...process.env, NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: publishable } });
+  assert.ifError(result.error);
+  assert.equal(result.status, 1);
+  assert.equal(result.stdout, '');
+  assert.doesNotMatch(result.stderr, /pk_test_|fixture\.clerk/);
+  assert.match(result.stderr, /No credentials were logged/);
 });

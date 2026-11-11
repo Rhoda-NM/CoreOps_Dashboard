@@ -13,6 +13,17 @@ Module._load = function(name, parent, main) {
 };
 const proxy = require('../src/proxy.ts').default;
 const { NextRequest } = require('next/server');
+test('lifecycle machine endpoint bypasses Clerk only for exact central GET; handler retains secret authorization',()=>inMode('subdomain',async()=>{
+  for(const machinePath of ['/api/lifecycle/process','/api/lifecycle/export-cleanup','/api/notifications/capture']){
+  const before=clerkCalls;
+  const response=await request(`https://app.workflowconnect.io${machinePath}`,async()=>{throw new Error('Interactive auth must not run');});
+  assert.equal(response.status,200);assert.equal(clerkCalls,before);
+  for(const host of ['workflowconnect.io','tenant-a.workflowconnect.io']){
+    assert.equal((await request(`https://${host}${machinePath}`)).status,404);
+  }
+  assert.equal((await request(`https://app.workflowconnect.io${machinePath}`,null,{},'POST')).status,404);
+  }
+}));
 const keys = ['NODE_ENV','VERCEL_ENV','COREOPS_ROUTING_MODE','COREOPS_APP_ORIGIN','COREOPS_MARKETING_ORIGIN','COREOPS_TENANT_ROOT_DOMAIN','COREOPS_PREVIEW_HOSTS'];
 async function inMode(mode, fn) {
   const old = Object.fromEntries(keys.map(key => [key, process.env[key]]));
@@ -99,4 +110,10 @@ test('explicit preview deployments stay path-based; invalid configuration fails 
 
 test('unknown tenant pages return neutral 404 before any Clerk handshake',()=>inMode('subdomain',async()=>{
  const before=clerkCalls;const response=await request('https://unknown-business.workflowconnect.io/projects');assert.equal(response.status,404);assert.equal(await response.text(),'Not found');assert.equal(clerkCalls,before);
+}));
+
+test('Resend webhook is exact central POST, never a tenant action or interactive Clerk route',()=>inMode('subdomain',async()=>{
+ const before=clerkCalls;assert.equal((await request('https://app.workflowconnect.io/api/notifications/resend/webhook',null,{},'POST')).status,200);assert.equal(clerkCalls,before);
+ for(const host of ['workflowconnect.io','tenant-a.workflowconnect.io'])assert.equal((await request(`https://${host}/api/notifications/resend/webhook`,null,{},'POST')).status,404);
+ assert.equal((await request('https://app.workflowconnect.io/api/notifications/resend/webhook')).status,404);
 }));

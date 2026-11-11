@@ -20,6 +20,17 @@ export function planRequest(policy: RoutingPolicy, input: { host: string | null;
   if (host.kind === "rejected") return deny;
   const path = input.pathname;
   const read = input.method === "GET" || input.method === "HEAD";
+  // Handler independently rejects deployed use and requires genuine Svix verification.
+  if(path==="/api/notifications/resend/webhook"){
+    if(input.method!=="POST"||(policy.mode==="subdomain"&&host.kind!=="app"))return deny;
+    return {action:"next",host,public:true,infrastructure:true,internalPath:path};
+  }
+  // Machine authentication is enforced by the handler, never by User-Agent.
+  // Explicitly bypass interactive Clerk only on this exact central GET route.
+  if (path === "/api/lifecycle/process" || path === "/api/lifecycle/export-cleanup" || path === "/api/notifications/capture") {
+    if (input.method !== "GET" || (policy.mode === "subdomain" && host.kind !== "app")) return deny;
+    return { action: "next", host, public: true, infrastructure: true, internalPath: path };
+  }
   if (/[%\\\s\u0000-\u001f\u007f]/.test(path) || path.includes("//") || path.split("/").some(p => p === "." || p === "..")) return deny;
   const asset = assets.has(path) || path.startsWith("/_next/") || /^\/(brand|screenshots)\/[a-zA-Z0-9_./-]+$/.test(path);
   if (asset) return read ? { action: "next", host, public: true, infrastructure: true } : deny;

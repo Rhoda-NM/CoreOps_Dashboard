@@ -127,6 +127,8 @@ test('identity provisioning preserves verified external bindings', async t => {
     await prisma.project.deleteMany({ where: { workspaceId: { in: workspaceIds } } });
     await prisma.client.deleteMany({ where: { workspaceId: { in: workspaceIds } } });
     await prisma.workspace.deleteMany({ where: { id: { in: workspaceIds } } });
+    // Explicitly dispose only synthetic fixture receipts; real User deletion is now restrictive.
+    await prisma.legalAcceptance.deleteMany({ where: { user: { email: { startsWith: prefix, mode: 'insensitive' } } } });
     await prisma.user.deleteMany({ where: { email: { startsWith: prefix, mode: 'insensitive' } } });
     await prisma.$disconnect();
   }

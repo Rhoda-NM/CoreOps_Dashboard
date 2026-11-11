@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 // src/app/(dashboard)/layout.tsx
 import Link from "next/link";
+import { dataAccessEnabled } from "@/server/data-access/security";
 import { centralUrl } from "@/lib/routing/host-policy";
 import { workspaceRoutingContext, workspaceNavigationPath } from "@/server/routing/request-context";
 import { redirect } from "next/navigation";
@@ -26,9 +27,10 @@ export default async function DashboardLayout({
   const routing = await workspaceRoutingContext();
   const path = routing.internalPath;
   const workspacesHref = routing.policy.mode === "subdomain" ? centralUrl(routing.policy, "/dashboard") : "/dashboard";
+  const dataHref = centralUrl(routing.policy, "/account/data");
   const accountHref = routing.policy.mode === "subdomain" ? centralUrl(routing.policy, "/account") : "/account";
   if (!access.read && path !== `${base}/subscription`) redirect(await workspaceNavigationPath("/subscription"));
-  if (!access.read) return <main className="mx-auto max-w-5xl space-y-6 p-6 text-core-text"><nav className="flex flex-wrap gap-6"><Link href={workspacesHref}>WorkflowConnect · Workspaces</Link><Link href={accountHref}>Account & security</Link></nav><p className="text-sm text-core-muted">{membership.workspace.name} · {membership.role}</p>{children}</main>;
+  if (!access.read) return <main className="mx-auto max-w-5xl space-y-6 p-6 text-core-text"><nav className="flex flex-wrap gap-6"><Link href={workspacesHref}>WorkflowConnect · Workspaces</Link><Link href={accountHref}>Account & security</Link>{dataAccessEnabled() && membership.role === "OWNER" && <Link href={dataHref}>Exports & recovery</Link>}</nav><p className="text-sm text-core-muted">{membership.workspace.name} · {membership.role}</p>{access.lifecycle?.state === "CANCELED" && <p role="status">This workspace is canceled. Normal workspace access is unavailable. Contact support for a recovery review. The calculated retention deadline is {access.lifecycle.retentionEndsAt?.toISOString()}; no deletion is enabled.</p>}{children}</main>;
   return (
     <QuickAddProvider>
       <DashboardShell
@@ -45,7 +47,7 @@ export default async function DashboardLayout({
         }}
       >
         {memberships.length > 1 && <WorkspaceSwitcher current={membership.workspace.slug!} workspaces={memberships.map(m => ({ slug: m.workspace.slug!, name: m.workspace.name }))} />}
-        <div className="mb-4 flex flex-wrap gap-4 text-sm"><Link href={await workspaceNavigationPath("/subscription")}>Subscription</Link>{!access.write && <span>Read-only · renew your subscription to resume changes.</span>}{access.inGrace && <span>Your subscription is in its seven-day grace period.</span>}</div>
+        <div className="mb-4 flex flex-wrap gap-4 text-sm"><Link href={await workspaceNavigationPath("/subscription")}>Subscription</Link>{dataAccessEnabled() && membership.role === "OWNER" && <Link href={dataHref}>Export workspace data</Link>}{!access.write && <span>{access.lifecycle?.state === "ARCHIVED" ? "Archived · read-only. Renew your subscription to resume changes." : "Read-only · renew your subscription to resume changes."}</span>}{access.inGrace && <span>Your subscription is in its seven-day grace period.</span>}</div>
         {children}
       </DashboardShell>
 

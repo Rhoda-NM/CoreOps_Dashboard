@@ -24,6 +24,18 @@ Module._load = function(name, parent, main) {
   return load.call(this, name, parent, main);
 };
 const { prisma } = require('../src/server/db/prisma.ts');
+// Onboarding now uses real synthetic OPEN-market applications, not a bypass.
+const onboardingModule = require('../src/server/services/workspace-onboarding.service.ts');
+const initialOnboarding = onboardingModule.createInitialWorkspace;
+onboardingModule.createInitialWorkspace = async (name, slug, applicationId) => {
+  process.env.COREOPS_MARKET_REHEARSAL_ENABLED = 'true';
+  const actor = request.getStore()?.user;
+  if (!applicationId) {
+    const app = await require('../src/server/market/service.ts').submitMarketApplication({ country:'KE', interest:'WORKFLOW', useCase:'Synthetic authorization fixture', attested:true, idempotencyKey:`auth-case-${actor?.id}` });
+    applicationId = app.id;
+  }
+  return initialOnboarding(name, slug, applicationId);
+};
 const { getCurrentWorkspaceMembership } = require('../src/server/auth/get-current-workspace.ts');
 const projects = require('../src/server/services/projects.service.ts');
 const tasks = require('../src/server/services/tasks.service.ts');
@@ -255,7 +267,7 @@ test('workspace authorization and tenant integrity', async t => {
     await t.test('concurrent initial onboarding creates one workspace, owner, and subscription', async () => {
       const newcomer = await user();
       const { createWorkspaceAction } = require('../src/features/workspaces/actions/create-workspace.ts');
-      const form = new FormData(); form.set('name', 'Concurrent onboarding test'); form.set('slug', id());
+      const form = new FormData(); form.set('name', 'Concurrent onboarding test'); form.set('slug', id()); form.set('country','KE'); form.set('interest','WORKFLOW'); form.set('useCase','Synthetic authorization fixture'); form.set('attested','on'); form.set('key',`auth-case-${newcomer.id}`); process.env.COREOPS_MARKET_REHEARSAL_ENABLED='true';
       const results = await Promise.allSettled(Array.from({ length: 10 }, () => run(newcomer, {}, () => createWorkspaceAction({ error: '' }, form))));
       const createdMemberships = await prisma.workspaceMember.findMany({ where: { userId: newcomer.id } });
       extraWorkspaces.push(...createdMemberships.map(m => m.workspaceId));
@@ -321,7 +333,7 @@ test('workspace authorization and tenant integrity', async t => {
       for(const slug of ['app','security','UPPER','ab','a'.repeat(64),'a.b',' business '])await assert.rejects(run(newcomer,{},()=>createInitialWorkspace('Valid name',slug)));
       assert.equal(await prisma.workspaceMember.count({where:{userId:newcomer.id}}),0);
       const slug=id();const phantom={id:id()};
-      await assert.rejects(run(phantom,{},()=>createInitialWorkspace('Rollback owner',slug)),error=>error.code==='P2003');
+      await assert.rejects(run(phantom,{},()=>createInitialWorkspace('Rollback owner',slug)),error=>error.code==='P2025');
       assert.equal(await prisma.workspace.count({where:{slug}}),0);
     });
     await t.test('availability is advisory, private, syntax-first and constrained per verified account', async () => {
@@ -401,6 +413,7 @@ test('workspace authorization and tenant integrity', async t => {
     await prisma.client.deleteMany({ where: { workspaceId: { in: ids } } });
     await cleanupCommercial(prisma, ids, users.map(u => u.id), commercialOffers);
     await prisma.workspace.deleteMany({ where: { id: { in: ids } } });
+    await require("./market-fixtures.cjs").cleanupMarket(prisma, users.map(u => u.id));
     await prisma.user.deleteMany({ where: { id: { in: users.map(u => u.id) } } });
     await prisma.$disconnect();
   }

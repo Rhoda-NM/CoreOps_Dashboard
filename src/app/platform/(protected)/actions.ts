@@ -18,7 +18,7 @@ export async function platformAction(_state: CommercialState, data: FormData): P
       case "rejectPayment": await commercial.rejectPayment(v("id"), reason); break;
       case "reverse": await commercial.reverseReceipt(v("id"), reason); break;
       case "overpayment": await commercial.reviewOverpayment(v("id"), reason); break;
-      case "activate": await commercial.activateSubscription(v("id"), reason); break;
+      case "activate": await commercial.activateSubscription(v("id"), reason, v("recoveryId") || undefined); break;
       case "reject": await commercial.closeRequest(v("id"), true, reason); break;
       case "status": await commercial.setWorkspaceStatus(v("id"), v("status") as "ACTIVE" | "SUSPENDED" | "CLOSED", reason); break;
       case "publish": await commercial.publishOffer(v("id"), reason, v("published") === "true"); break;

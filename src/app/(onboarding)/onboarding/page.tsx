@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 
 import { WorkspaceOnboardingForm } from "@/features/workspaces/components/WorkSpaceOnboardingForm";
 import { getCurrentUser } from "@/server/auth/get-current-user";
+import { randomUUID } from "node:crypto";
+import { countryCodes } from "@/server/market/service";
 import { prisma } from "@/server/db/prisma";
 
 export default async function OnboardingPage() {
@@ -24,13 +26,15 @@ export default async function OnboardingPage() {
     redirect("/dashboard");
   }
 
+  const names = new Intl.DisplayNames(["en"], { type: "region" });
+  const countryOptions = countryCodes.map(code => ({ code, name: names.of(code) ?? code }));
   const defaultWorkspaceName = user.name
     ? `${user.name}'s Workspace`
     : "My Workspace";
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#0E2425] px-6 py-12">
-      <WorkspaceOnboardingForm defaultName={defaultWorkspaceName} addressDomain={policy.tenantRootDomain ?? "workflowconnect.io"} />
+      <WorkspaceOnboardingForm requestKey={randomUUID()} countryOptions={countryOptions} defaultName={defaultWorkspaceName} addressDomain={policy.tenantRootDomain ?? "workflowconnect.io"} />
     </main>
   );
 }

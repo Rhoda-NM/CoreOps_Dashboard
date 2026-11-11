@@ -5,7 +5,7 @@ import { createWorkspaceAction } from "@/features/workspaces/actions/create-work
 import { checkWorkspaceSlugAction } from "@/features/workspaces/actions/check-workspace-slug";
 import { selectedWorkspaceSlugMessage, suggestWorkspaceSlug } from "@/lib/routing/workspace-slug";
 
-export function WorkspaceOnboardingForm({ defaultName = "", addressDomain = "workflowconnect.io" }: { defaultName?: string; addressDomain?: string }) {
+export function WorkspaceOnboardingForm({ defaultName = "", addressDomain = "workflowconnect.io", countryOptions, requestKey }: { defaultName?: string; addressDomain?: string; countryOptions: { code: string; name: string }[]; requestKey: string }) {
   const [name, setName] = useState(defaultName);
   const [slug, setSlug] = useState(() => suggestWorkspaceSlug(defaultName));
   const [edited, setEdited] = useState(false);
@@ -26,8 +26,14 @@ export function WorkspaceOnboardingForm({ defaultName = "", addressDomain = "wor
     });
   }
   return <div className="w-full max-w-xl rounded-2xl border border-core-border bg-core-card p-6 shadow-2xl sm:p-8">
-    <header className="mb-8"><p className="text-sm font-semibold text-core-accent">Welcome to WorkflowConnect</p><h1 className="mt-2 text-3xl font-bold text-white">Create your workspace</h1><p className="mt-3 text-base leading-7 text-core-text-secondary">Set up your business, then choose your subscription. Business access follows payment verification and activation.</p></header>
+    <header className="mb-8"><p className="text-sm font-semibold text-core-accent">Welcome to WorkflowConnect</p><h1 className="mt-2 text-3xl font-bold text-white">Set up your business</h1><p className="mt-3 text-base leading-7 text-core-text-secondary">Select your business country. Open markets can create a restricted workspace; other markets require inquiry review. Country is self-declared. Business access still requires payment verification and activation.</p></header>
     <form action={action} className="space-y-6">
+      <input type="hidden" name="key" value={requestKey}/>
+      <label className="block">Business country of operation<select name="country" required defaultValue="" className={inputClass}><option value="" disabled>Select country</option>{countryOptions.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}</select></label>
+      <label className="block">Product interest<select name="interest" className={inputClass}><option value="WORKFLOW">Business workflow</option><option value="PROJECTS">Project management</option><option value="INVOICING">Invoicing</option></select></label>
+      <label className="block">Business use case<textarea name="useCase" required minLength={3} maxLength={1000} className="w-full rounded-xl border p-3"/></label>
+      <p>Do not include client records, sensitive information, passwords or payment details.</p>
+      <label className="block"><input type="checkbox" name="attested" required/> I am authorized to apply for this business and declare its country of operation accurately.</label>
       <div className="space-y-2"><label htmlFor="name" className="text-sm font-medium text-core-text">Business name</label><input id="name" name="name" required minLength={2} maxLength={120} value={name} onChange={event => updateName(event.target.value)} placeholder="Stravect Systems" className={inputClass}/></div>
       <div className="space-y-3"><label htmlFor="slug" className="text-sm font-medium text-core-text">Workspace address</label><input id="slug" name="slug" required minLength={3} maxLength={63} value={slug} onChange={event => { setEdited(true); setSlug(event.target.value); }} autoCapitalize="none" autoCorrect="off" spellCheck={false} aria-invalid={!!invalid} aria-describedby="slug-help slug-preview slug-feedback" className={inputClass}/>
         <p id="slug-preview" className="break-all rounded-lg border border-core-border bg-core-surface p-3 text-base text-core-accent">{slug || "your-business"}.{addressDomain}</p>
@@ -36,7 +42,7 @@ export function WorkspaceOnboardingForm({ defaultName = "", addressDomain = "wor
         <p id="slug-feedback" role="status" aria-live="polite" className={`text-sm leading-6 ${invalid || (availability?.slug === slug && availability.status !== "available") ? "text-red-300" : "text-core-accent"}`}>{invalid ?? (availability?.slug === slug ? availability.message : "Availability is confirmed when you create your workspace.")}</p>
       </div>
       {state.error && <p role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">{state.error}</p>}
-      <button type="submit" disabled={isPending || !!invalid} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-core-primary px-4 text-base font-semibold text-white disabled:opacity-60">{isPending ? <><Loader2 aria-hidden="true" className="h-4 w-4 animate-spin"/>Creating workspace…</> : "Create workspace"}</button>
+      <button type="submit" disabled={isPending || !!invalid} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-core-primary px-4 text-base font-semibold text-white disabled:opacity-60">{isPending ? <><Loader2 aria-hidden="true" className="h-4 w-4 animate-spin"/>Submitting…</> : "Continue"}</button>
       <p className="text-sm text-core-muted">No automatic trial. Your workspace starts pending activation.</p>
     </form>
   </div>;

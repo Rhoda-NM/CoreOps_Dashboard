@@ -10,6 +10,13 @@ import { AccessError } from "../authorization/errors";
 import { requirePlatform, platformCan, type PlatformPermission } from "./platform-auth";
 import { capacity } from "./access";
 import { CommercialError, DAY, money, normalizeReference, periodEnd } from "./policy";
+import { lifecycleEnforcementEnabled } from "../lifecycle/config";
+import { lifecycleNow } from "../lifecycle/clock";
+import { requireRenewableLifecycle, synchronizeLifecycle } from "../lifecycle/service";
+import { restoreAfterPaidActivation } from "../data-access/restore";
+import { requireWorkspaceMarket } from "../market/access";
+import { requirePay1Workspace } from "../preview/pay1-admission";
+import { pay1Enabled } from "../preview/pay1-config";
 const hash = (data: unknown) => createHash("sha256").update(JSON.stringify(data)).digest("hex");
 const text = (value: string) => z.string().trim().min(3).max(2000).parse(value);
 const key = (value: string) => z.string().min(16).max(100).parse(value);
@@ -18,6 +25,7 @@ async function ownerTransaction<T>(operation: (tx: TX, member: Awaited<ReturnTyp
   const context = await getCurrentWorkspaceMembership();
   return prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM "Workspace" WHERE id = ${context.workspaceId} FOR UPDATE`;
+    await requirePay1Workspace(tx, context.workspaceId, false);
     const member = await tx.workspaceMember.findFirst({ where: { id: context.id, userId: context.userId, workspaceId: context.workspaceId, status: "ACTIVE", role: "OWNER" }, include: { user: true, workspace: true } });
     if (!member || member.workspace.activationStatus === "CLOSED") throw new AccessError("FORBIDDEN");
     return operation(tx, member);
@@ -25,8 +33,14 @@ async function ownerTransaction<T>(operation: (tx: TX, member: Awaited<ReturnTyp
 }
 async function platformTransaction<T>(permission: PlatformPermission, workspaceId: string | null, operation: (tx: TX, admin: Awaited<ReturnType<typeof requirePlatform>>) => Promise<T>) {
   const identity = await requirePlatform(permission);
+  if (pay1Enabled() && !workspaceId) throw new AccessError("FORBIDDEN");
   return prisma.$transaction(async tx => {
     if (workspaceId) await tx.$queryRaw`SELECT id FROM "Workspace" WHERE id = ${workspaceId} FOR UPDATE`;
+    if (workspaceId) {
+      const w = await tx.workspace.findUniqueOrThrow({ where: { id: workspaceId }, select: { marketApplicationId: true } });
+      if (w.marketApplicationId) await tx.$queryRaw`SELECT id FROM "MarketApplication" WHERE id=${w.marketApplicationId} FOR UPDATE`;
+    }
+    if (workspaceId) await requirePay1Workspace(tx, workspaceId, false);
     await tx.$queryRaw`SELECT id FROM "PlatformAdmin" WHERE id = ${identity.id} FOR UPDATE`;
     const admin = await tx.platformAdmin.findUniqueOrThrow({ where: { id: identity.id } });
     if (!admin.active || !platformCan(admin.role, permission)) throw new AccessError("FORBIDDEN");
@@ -51,6 +65,7 @@ export async function submitRequest(offerId: string, type: SubscriptionRequestTy
   z.enum(["INITIAL", "RENEWAL", "UPGRADE"]).parse(type); key(idempotencyKey);
   const payloadHash = hash({ offerId, type });
   return ownerTransaction(async (tx, member) => {
+    await requireWorkspaceMarket(tx, member.workspaceId);
     const existing = await tx.subscriptionRequest.findUnique({ where: { workspaceId_idempotencyKey: { workspaceId: member.workspaceId, idempotencyKey } } });
     if (existing) { if (existing.payloadHash !== payloadHash) throw new CommercialError("This request key was already used with different details."); return existing; }
     const offer = await tx.subscriptionPlanOffer.findUniqueOrThrow({ where: { id: offerId } });
@@ -69,6 +84,7 @@ export async function reviewRequest(requestId: string, input: { amount: string; 
   await requirePlatform("billing");
   const initial = await prisma.subscriptionRequest.findUniqueOrThrow({ where: { id: requestId }, select: { workspaceId: true } });
   return platformTransaction("billing", initial.workspaceId, async (tx, admin) => {
+    await requireWorkspaceMarket(tx, initial.workspaceId);
     const request = await tx.subscriptionRequest.findUniqueOrThrow({ where: { id: requestId } });
     if (request.status !== "SUBMITTED") throw new CommercialError("Only submitted requests may be commercially reviewed.");
     const account = await tx.paymentReceivingAccount.findUniqueOrThrow({ where: { id: input.accountId } });
@@ -87,6 +103,7 @@ export async function reviewRequest(requestId: string, input: { amount: string; 
 }
 export async function acceptQuote(requestId: string) {
   return ownerTransaction(async (tx, member) => {
+    await requireWorkspaceMarket(tx, member.workspaceId);
     const request = await tx.subscriptionRequest.findFirstOrThrow({ where: { id: requestId, workspaceId: member.workspaceId } });
     if (request.status === "AWAITING_PAYMENT") return request;
     if (request.status !== "QUOTED" || !request.approvedAt || !request.payableAmount) throw new CommercialError("A commercially approved quote is required.");
@@ -98,6 +115,7 @@ export async function submitPayment(requestId: string, input: { reference: strin
   const reference = normalizeReference(input.reference), amount = money(input.amount); key(input.idempotencyKey);
   const payloadHash = hash({ reference, amount: amount.toFixed(2) });
   return ownerTransaction(async (tx, member) => {
+    await requireWorkspaceMarket(tx, member.workspaceId);
     const request = await tx.subscriptionRequest.findFirstOrThrow({ where: { id: requestId, workspaceId: member.workspaceId } });
     const existing = await tx.subscriptionPayment.findUnique({ where: { requestId_idempotencyKey: { requestId, idempotencyKey: input.idempotencyKey } } });
     if (existing) { if (existing.payloadHash !== payloadHash) throw new CommercialError("This payment key was already used with different details."); return existing; }
@@ -143,16 +161,19 @@ export async function reviewOverpayment(requestId: string, reason: string) {
   });
 }
 // Single paid activation transaction; no client flag or payer statement can bypass receipt checks.
-export async function activateSubscription(requestId: string, reason: string) {
+export async function activateSubscription(requestId: string, reason: string, recoveryRequestId?: string) {
   await requirePlatform("activate");
   const initial = await prisma.subscriptionRequest.findUniqueOrThrow({ where: { id: requestId }, select: { workspaceId: true } });
   const priorActivation = await prisma.subscriptionPeriod.findUnique({ where: { sourceRequestId: requestId } });
-  if (priorActivation) return priorActivation;
-  const verifiedOwner = await verifyWorkspaceOwner(initial.workspaceId);
+  if (priorActivation) { await requireWorkspaceMarket(prisma, initial.workspaceId); return priorActivation; }
+  const recoveryTarget = recoveryRequestId ? await prisma.workspaceRecoveryRequest.findFirstOrThrow({ where: { id: recoveryRequestId, workspaceId: initial.workspaceId }, select: { requesterId: true } }) : null;
+  const verifiedOwner = await verifyWorkspaceOwner(initial.workspaceId, recoveryTarget?.requesterId);
   return platformTransaction("activate", initial.workspaceId, async (tx, admin) => {
+    const marketEligibility = await requireWorkspaceMarket(tx, initial.workspaceId);
     const existing = await tx.subscriptionPeriod.findUnique({ where: { sourceRequestId: requestId } });
     if (existing) return existing;
     const request = await tx.subscriptionRequest.findUniqueOrThrow({ where: { id: requestId }, include: { workspace: true } });
+    if (request.workspace.activationStatus === "SUSPENDED") throw new CommercialError("A suspended workspace requires an authorized restriction review before activation.");
     if (request.workspace.activationStatus === "CLOSED" || request.status !== "READY_FOR_ACTIVATION" || !request.approvedAt || !request.quoteAcceptedAt || !request.payableAmount || !request.memberLimit) throw new CommercialError("Commercial approval, accepted quote, and verified payment are required.");
     if (await tx.subscriptionPayment.count({ where: { requestId, status: "SUBMITTED" } })) throw new CommercialError("Reconcile or reject every submitted payment claim before activation.");
     const total = await funding(tx, requestId);
@@ -160,7 +181,9 @@ export async function activateSubscription(requestId: string, reason: string) {
     const owners = await tx.workspaceMember.count({ where: { id: verifiedOwner.memberId, workspaceId: request.workspaceId, role: "OWNER", status: "ACTIVE", user: { externalId: verifiedOwner.externalId, email: verifiedOwner.email } } });
     if (!owners || await capacity(request.workspaceId, tx) > request.memberLimit) throw new CommercialError("An active owner and sufficient member capacity are required.");
     if (request.plan === "SOLO" && (await tx.workspaceMember.count({ where: { workspaceId: request.workspaceId, role: { not: "OWNER" } } }) || request.invitationsEnabled)) throw new CommercialError("Solo allows one owner and no invitations.");
-    const now = new Date();
+    const now = await lifecycleNow(tx);
+    const recovery = await requireRenewableLifecycle(tx, request.workspaceId, now, recoveryRequestId ? { requestId: recoveryRequestId, ownerMemberId: verifiedOwner.memberId } : undefined);
+    if (lifecycleEnforcementEnabled()) await synchronizeLifecycle(tx, request.workspaceId, now);
     const previous = await tx.subscriptionPeriod.findFirst({ where: { workspaceId: request.workspaceId, revokedAt: null }, orderBy: { endsAt: "desc" } });
     if ((request.type === "INITIAL") === !!previous) throw new CommercialError("The subscription history changed; review a new request.");
     if (previous && request.type === "RENEWAL" && (request.plan !== previous.plan || request.interval !== previous.interval)) throw new CommercialError("Renewals cannot change plans or billing intervals.");
@@ -172,7 +195,9 @@ export async function activateSubscription(requestId: string, reason: string) {
     await tx.subscription.update({ where: { id: request.subscriptionId }, data: { plan: request.plan, status: "ACTIVE", currentPeriodEnd: endsAt, gracePeriodEnd: graceEndsAt } });
     await tx.workspace.update({ where: { id: request.workspaceId }, data: { activationStatus: "ACTIVE", activatedAt: request.workspace.activatedAt ?? now } });
     await tx.subscriptionRequest.update({ where: { id: requestId }, data: { status: "ACTIVATED" } });
-    await audit(tx, admin.id, "SUBSCRIPTION_ACTIVATED", period.id, reason, request.workspaceId, { requestId, startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString() }); return period;
+    if (recovery) await restoreAfterPaidActivation(tx, recovery, period);
+    else if (lifecycleEnforcementEnabled()) await synchronizeLifecycle(tx, request.workspaceId, now);
+    await audit(tx, admin.id, "SUBSCRIPTION_ACTIVATED", period.id, reason, request.workspaceId, { requestId, startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(), ...(marketEligibility ? { marketApplicationId: marketEligibility.id, marketDecisionId: marketEligibility.currentDecisionId, marketSubmissionId: marketEligibility.operativeSubmissionId } : {}) }); return period;
   });
 }
 export async function rejectPayment(paymentId: string, reason: string) {
@@ -209,6 +234,8 @@ export async function setWorkspaceStatus(workspaceId: string, status: "ACTIVE" |
     const workspace = await tx.workspace.findUniqueOrThrow({ where: { id: workspaceId } });
     if (workspace.activationStatus === "CLOSED" || workspace.activationStatus === "PENDING_ACTIVATION") throw new CommercialError("Use the paid activation workflow for pending workspaces. Closed workspaces require a separate recovery review.");
     if (status === "ACTIVE") {
+      await requireWorkspaceMarket(tx, workspaceId);
+      await requireRenewableLifecycle(tx, workspaceId, await lifecycleNow(tx));
       const period = await tx.subscriptionPeriod.findFirst({ where: { workspaceId, revokedAt: null, startsAt: { lte: new Date() }, graceEndsAt: { gt: new Date() } } });
       if (!period || !verifiedOwner || !await tx.workspaceMember.count({ where: { id: verifiedOwner.memberId, workspaceId, role: "OWNER", status: "ACTIVE", user: { externalId: verifiedOwner.externalId, email: verifiedOwner.email } } })) throw new CommercialError("Reactivation requires an eligible paid period and active owner.");
     }
@@ -297,8 +324,8 @@ export async function platformMetrics() {
   return { active, pending, expiring, expired, pendingRequests };
 }
 
-async function verifyWorkspaceOwner(workspaceId: string) {
-  const candidates = await prisma.workspaceMember.findMany({ where: { workspaceId, role: "OWNER", status: "ACTIVE", user: { externalId: { not: null } } }, select: { id: true, user: { select: { externalId: true, email: true } } }, take: 10 });
+async function verifyWorkspaceOwner(workspaceId: string, userId?: string) {
+  const candidates = await prisma.workspaceMember.findMany({ where: { workspaceId, ...(userId ? { userId } : {}), role: "OWNER", status: "ACTIVE", user: { externalId: { not: null } } }, select: { id: true, user: { select: { externalId: true, email: true } } }, take: 10 });
   const client = await clerkClient();
   for (const candidate of candidates) {
     try {

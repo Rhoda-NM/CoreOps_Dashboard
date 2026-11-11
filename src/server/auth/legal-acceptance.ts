@@ -8,7 +8,18 @@ import { getAuthConfiguration } from "@/config/auth";
 import { requireClerkIdentity } from "./clerk-identity";
 import { IdentityError } from "./identity-error";
 
+import { requireLegalRehearsal } from "../legal/config";
+import { hasCurrentSyntheticLegalReceipt } from "../legal/acceptance";
+
 export async function requireCurrentLegalReceipt(userId: string) {
+  if (process.env.COREOPS_LEGAL_CATALOG_REHEARSAL_ENABLED === "true") {
+    requireLegalRehearsal();
+    if (!await hasCurrentSyntheticLegalReceipt(userId)) {
+      const { policy } = await requestRoutingContext();
+      redirect(centralUrl(policy, "/account/legal/rehearsal"));
+    }
+    return;
+  }
   const config = getAuthConfiguration();
   // No receipt query or consent prompt for unapproved drafts.
   if (!config.requireLegal || !config.legalReady) return;
@@ -21,6 +32,7 @@ export async function requireCurrentLegalReceipt(userId: string) {
 }
 
 export async function recordLegalAcceptance(accepted: boolean, expected: { termsVersion: string; privacyVersion: string }) {
+  if (process.env.COREOPS_LEGAL_CATALOG_REHEARSAL_ENABLED === "true") throw new IdentityError("LEGAL_ACCEPTANCE_REQUIRED");
   const config = getAuthConfiguration();
   if (!config.legalReady || accepted !== true || expected.termsVersion !== config.termsVersion || expected.privacyVersion !== config.privacyVersion) throw new IdentityError("LEGAL_ACCEPTANCE_REQUIRED");
   const profile = await requireClerkIdentity();

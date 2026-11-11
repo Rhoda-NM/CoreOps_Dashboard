@@ -12,25 +12,36 @@ datasource db {
 }
 
 model User {
-  id         String  @id @default(cuid())
-  externalId String? @unique
-  name       String?
-  email      String  @unique
-  imageUrl   String?
+  legalEvidenceSubject LegalEvidenceSubject?
+  marketApplications   MarketApplication[]
+  marketSubmissions    MarketSubmission[]
+  marketDecisions      MarketDecision[]
+  notificationSources  NotificationSource[]
+  notifications        NotificationOutbox[]
+  id                   String                @id @default(cuid())
+  externalId           String?               @unique
+  name                 String?
+  email                String                @unique
+  imageUrl             String?
 
   platformAdmin        PlatformAdmin?
-  subscriptionRequests SubscriptionRequest[] @relation("RequestSubmitter")
-  paymentSubmissions   SubscriptionPayment[] @relation("PaymentSubmitter")
+  subscriptionRequests SubscriptionRequest[]      @relation("RequestSubmitter")
+  paymentSubmissions   SubscriptionPayment[]      @relation("PaymentSubmitter")
   legalAcceptances     LegalAcceptance[]
   memberships          WorkspaceMember[]
   auditLogs            AuditLog[]
   sentInvitations      WorkspaceInvitation[]
+  exports              WorkspaceExportRequest[]
+  recoveryRequests     WorkspaceRecoveryRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Workspace {
+  marketApplicationId  String?                   @unique
+  marketApplication    MarketApplication?        @relation(fields: [marketApplicationId], references: [id], onDelete: Restrict)
+  notificationSources  NotificationSource[]
   activationStatus     WorkspaceActivationStatus @default(PENDING_ACTIVATION)
   activatedAt          DateTime?
   subscriptionRequests SubscriptionRequest[]
@@ -40,14 +51,18 @@ model Workspace {
   name                 String
   slug                 String?                   @unique
 
-  subscription Subscription?
-  auditLogs    AuditLog[]
-  invitations  WorkspaceInvitation[]
-  members      WorkspaceMember[]
-  clients      Client[]
-  projects     Project[]
-  tasks        Task[]
-  invoices     Invoice[]
+  subscription     Subscription?
+  auditLogs        AuditLog[]
+  invitations      WorkspaceInvitation[]
+  members          WorkspaceMember[]
+  clients          Client[]
+  projects         Project[]
+  tasks            Task[]
+  invoices         Invoice[]
+  lifecycle        WorkspaceLifecycle?
+  lifecycleEvents  WorkspaceLifecycleEvent[]
+  exports          WorkspaceExportRequest[]
+  recoveryRequests WorkspaceRecoveryRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -241,16 +256,17 @@ model ProjectMember {
 }
 
 model AuditLog {
-  id           String    @id @default(cuid())
-  workspaceId  String
-  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
-  actorUserId  String?
-  actor        User?     @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
-  action       String
-  resourceType String
-  resourceId   String
-  metadata     Json?
-  createdAt    DateTime  @default(now())
+  notificationSources NotificationSource[]
+  id                  String               @id @default(cuid())
+  workspaceId         String
+  workspace           Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  actorUserId         String?
+  actor               User?                @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  action              String
+  resourceType        String
+  resourceId          String
+  metadata            Json?
+  createdAt           DateTime             @default(now())
 
   @@index([workspaceId, createdAt])
   @@index([workspaceId, resourceType, resourceId])
@@ -317,7 +333,7 @@ enum SubscriptionStatus {
 model LegalAcceptance {
   id                   String    @id @default(cuid())
   userId               String
-  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Restrict)
   termsVersion         String
   privacyVersion       String
   termsUrl             String
@@ -384,6 +400,13 @@ enum PlatformRole {
 }
 
 model PlatformAdmin {
+  legalVersions      LegalDocumentVersion[]
+  legalReviews       LegalVersionReview[]
+  legalPublications  LegalPublication[]
+  legalEvents        LegalEvidenceEvent[]
+  marketDecisions    MarketDecision[]
+  noticeResolutions  LifecycleNotice[]
+  recoveryReviews    WorkspaceRecoveryRequest[]
   id                 String                        @id @default(cuid())
   userId             String                        @unique
   user               User                          @relation(fields: [userId], references: [id], onDelete: Restrict)
@@ -403,16 +426,18 @@ model PlatformAdmin {
 }
 
 model PlatformAuditEvent {
-  id           String        @id @default(cuid())
-  actorAdminId String
-  actor        PlatformAdmin @relation(fields: [actorAdminId], references: [id], onDelete: Restrict)
-  action       String
-  resourceType String
-  resourceId   String
-  workspaceId  String?
-  reason       String
-  metadata     Json?
-  createdAt    DateTime      @default(now())
+  notificationReplacement NotificationOutbox? @relation("NotificationReplacementAudit")
+  notificationSource      NotificationSource?
+  id                      String              @id @default(cuid())
+  actorAdminId            String
+  actor                   PlatformAdmin       @relation(fields: [actorAdminId], references: [id], onDelete: Restrict)
+  action                  String
+  resourceType            String
+  resourceId              String
+  workspaceId             String?
+  reason                  String
+  metadata                Json?
+  createdAt               DateTime            @default(now())
 
   @@index([workspaceId, createdAt])
   @@index([createdAt])
@@ -462,6 +487,7 @@ model PaymentReceivingAccount {
 }
 
 model SubscriptionRequest {
+  notificationSources     NotificationSource[]
   id                      String                   @id @default(cuid())
   workspaceId             String
   workspace               Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
@@ -516,6 +542,7 @@ model SubscriptionRequest {
 }
 
 model SubscriptionPayment {
+  notificationSources NotificationSource[]
   id                  String                      @id @default(cuid())
   workspaceId         String
   workspace           Workspace                   @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
@@ -544,6 +571,7 @@ model SubscriptionPayment {
 }
 
 model SubscriptionPaymentReceipt {
+  notificationSources  NotificationSource[]
   id                   String                       @id @default(cuid())
   submissionId         String                       @unique
   workspaceId          String
@@ -574,42 +602,217 @@ model SubscriptionPaymentReceipt {
 }
 
 model SubscriptionPaymentReversal {
-  id           String                     @id @default(cuid())
-  receiptId    String                     @unique
-  receipt      SubscriptionPaymentReceipt @relation(fields: [receiptId], references: [id], onDelete: Restrict)
-  actorAdminId String
-  actor        PlatformAdmin              @relation(fields: [actorAdminId], references: [id], onDelete: Restrict)
-  reason       String
-  reversedAt   DateTime                   @default(now())
+  notificationSources NotificationSource[]
+  id                  String                     @id @default(cuid())
+  receiptId           String                     @unique
+  receipt             SubscriptionPaymentReceipt @relation(fields: [receiptId], references: [id], onDelete: Restrict)
+  actorAdminId        String
+  actor               PlatformAdmin              @relation(fields: [actorAdminId], references: [id], onDelete: Restrict)
+  reason              String
+  reversedAt          DateTime                   @default(now())
 }
 
 model SubscriptionPeriod {
-  id                 String              @id @default(cuid())
-  workspaceId        String
-  workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
-  subscriptionId     String
-  subscription       Subscription        @relation(fields: [subscriptionId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
-  sourceRequestId    String              @unique
-  sourceRequest      SubscriptionRequest @relation(fields: [sourceRequestId, workspaceId, subscriptionId], references: [id, workspaceId, subscriptionId], onDelete: Restrict)
-  plan               SubscriptionPlan
-  interval           BillingInterval
-  startsAt           DateTime
-  endsAt             DateTime
-  graceEndsAt        DateTime
-  anchorDay          Int
-  memberLimit        Int
-  projectLimit       Int?
-  invitationsEnabled Boolean
-  features           Json
-  agreedAmount       Decimal             @db.Decimal(18, 2)
-  currency           String
-  activatedById      String
-  activatedBy        PlatformAdmin       @relation(fields: [activatedById], references: [id], onDelete: Restrict)
-  revokedAt          DateTime?
-  createdAt          DateTime            @default(now())
+  notificationSources NotificationSource[]
+  exports             WorkspaceExportRequest[]
+  recoveryEpisodes    WorkspaceRecoveryRequest[] @relation("RecoveryEpisode")
+  recoveryActivations WorkspaceRecoveryRequest[] @relation("RecoveryActivation")
+  id                  String                     @id @default(cuid())
+  workspaceId         String
+  workspace           Workspace                  @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  subscriptionId      String
+  subscription        Subscription               @relation(fields: [subscriptionId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  sourceRequestId     String                     @unique
+  sourceRequest       SubscriptionRequest        @relation(fields: [sourceRequestId, workspaceId, subscriptionId], references: [id, workspaceId, subscriptionId], onDelete: Restrict)
+  plan                SubscriptionPlan
+  interval            BillingInterval
+  startsAt            DateTime
+  endsAt              DateTime
+  graceEndsAt         DateTime
+  anchorDay           Int
+  memberLimit         Int
+  projectLimit        Int?
+  invitationsEnabled  Boolean
+  features            Json
+  agreedAmount        Decimal                    @db.Decimal(18, 2)
+  currency            String
+  activatedById       String
+  activatedBy         PlatformAdmin              @relation(fields: [activatedById], references: [id], onDelete: Restrict)
+  revokedAt           DateTime?
+  createdAt           DateTime                   @default(now())
+  lifecycle           WorkspaceLifecycle?
+  lifecycleEvents     WorkspaceLifecycleEvent[]
 
+  @@unique([id, workspaceId])
   @@unique([sourceRequestId, workspaceId, subscriptionId])
   @@index([workspaceId, startsAt, endsAt])
+}
+
+// Checkpoint B: non-destructive lifecycle journal. No deletion capabilities.
+model WorkspaceLifecycle {
+  workspaceId             String             @id
+  workspace               Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  sourcePeriodId          String             @unique
+  sourcePeriod            SubscriptionPeriod @relation(fields: [sourcePeriodId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  episodeId               String             @unique
+  policyVersion           String
+  revision                Int                @default(1)
+  archivedAt              DateTime?
+  cancellationEffectiveAt DateTime?
+  cancellationRecordedAt  DateTime?
+  retentionEndsAt         DateTime?
+  nextEvaluationAt        DateTime?
+  updatedAt               DateTime           @updatedAt
+
+  @@unique([sourcePeriodId, workspaceId])
+  @@index([nextEvaluationAt])
+  @@index([retentionEndsAt])
+}
+
+enum WorkspaceLifecycleEventType {
+  WORKSPACE_ARCHIVED
+  WORKSPACE_CANCELED
+  WORKSPACE_REACTIVATED
+  EXPORT_REQUESTED
+  EXPORT_READY
+  EXPORT_FAILED
+  EXPORT_EXPIRED
+  EXPORT_DOWNLOAD_AUTHORIZED
+  RECOVERY_REQUESTED
+  RECOVERY_APPROVED
+  RECOVERY_REJECTED
+  RECOVERY_REVOKED
+  RECOVERY_GRANT_EXPIRED
+  WORKSPACE_RESTORED
+}
+
+model WorkspaceLifecycleEvent {
+  notificationSource NotificationSource?
+  exportId           String?
+  export             WorkspaceExportRequest?     @relation(fields: [exportId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  recoveryId         String?
+  recovery           WorkspaceRecoveryRequest?   @relation(fields: [recoveryId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  id                 String                      @id @default(cuid())
+  workspaceId        String
+  workspace          Workspace                   @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  episodeId          String
+  episode            SubscriptionPeriod          @relation(fields: [episodeId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  type               WorkspaceLifecycleEventType
+  effectiveAt        DateTime
+  recordedAt         DateTime                    @default(now())
+  policyVersion      String
+  operationKey       String                      @unique
+
+  @@index([workspaceId, recordedAt])
+  @@index([recordedAt, id])
+}
+
+enum WorkspaceExportStatus {
+  REQUESTED
+  PROCESSING
+  READY
+  FAILED
+  DOWNLOADED
+  EXPIRED
+}
+
+enum WorkspaceRecoveryStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REVOKED
+  EXPIRED
+}
+
+model WorkspaceExportRequest {
+  availabilityVersion Int                           @default(1)
+  generatedAt         DateTime?
+  artifactExpiresAt   DateTime?
+  artifactKeyVersion  String?
+  requesterExternalId String?
+  requesterEmailHash  String?
+  downloadLeaseToken  String?
+  authorizations      ExportDownloadAuthorization[]
+  id                  String                        @id @default(cuid())
+  workspaceId         String
+  workspace           Workspace                     @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  requesterId         String
+  requester           User                          @relation(fields: [requesterId], references: [id], onDelete: Restrict)
+  sourcePeriodId      String
+  sourcePeriod        SubscriptionPeriod            @relation(fields: [sourcePeriodId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  recoveryId          String?
+  recovery            WorkspaceRecoveryRequest?     @relation(fields: [recoveryId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  idempotencyKey      String
+  payloadHash         String
+  status              WorkspaceExportStatus         @default(REQUESTED)
+  schemaVersion       String                        @default("workspace-export-v1")
+  expiresAt           DateTime
+  leaseUntil          DateTime?
+  artifact            Bytes?
+  artifactDigest      String?
+  tokenHash           String?
+  errorCode           String?
+  events              WorkspaceLifecycleEvent[]
+  createdAt           DateTime                      @default(now())
+  updatedAt           DateTime                      @updatedAt
+
+  @@unique([requesterId, idempotencyKey])
+  @@unique([id, workspaceId])
+  @@index([workspaceId, status, expiresAt])
+  @@index([expiresAt])
+}
+
+model WorkspaceRecoveryRequest {
+  id                  String                    @id @default(cuid())
+  workspaceId         String
+  workspace           Workspace                 @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  requesterId         String
+  requester           User                      @relation(fields: [requesterId], references: [id], onDelete: Restrict)
+  requesterExternalId String
+  emailHash           String
+  sourcePeriodId      String
+  sourcePeriod        SubscriptionPeriod        @relation("RecoveryEpisode", fields: [sourcePeriodId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  idempotencyKey      String
+  payloadHash         String
+  claimReference      String
+  status              WorkspaceRecoveryStatus   @default(PENDING)
+  reviewedById        String?
+  reviewedBy          PlatformAdmin?            @relation(fields: [reviewedById], references: [id], onDelete: Restrict)
+  evidenceReferences  String?
+  reviewReason        String?
+  identityCheckedAt   DateTime?
+  ownershipVerifiedAt DateTime?
+  reviewedAt          DateTime?
+  expiresAt           DateTime?
+  allowExport         Boolean                   @default(false)
+  allowReactivation   Boolean                   @default(false)
+  revokedAt           DateTime?
+  revocationReason    String?
+  activationPeriodId  String?                   @unique
+  activationPeriod    SubscriptionPeriod?       @relation("RecoveryActivation", fields: [activationPeriodId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  activatedAt         DateTime?
+  exports             WorkspaceExportRequest[]
+  events              WorkspaceLifecycleEvent[]
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+
+  @@unique([requesterId, idempotencyKey])
+  @@unique([id, workspaceId])
+  @@unique([activationPeriodId, workspaceId])
+  @@index([workspaceId, status])
+  @@index([expiresAt])
+}
+
+model LifecycleJobRun {
+  id          String    @id @default(cuid())
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  processed   Int       @default(0)
+  skipped     Int       @default(0)
+  failed      Int       @default(0)
+  failureCode String?
+  cursor      String?
+  outcomes    Json      @default("[]")
 }
 
 enum VatRegistrationStatus {
@@ -699,4 +902,626 @@ model PaystackWebhookEvent {
 
   @@unique([mode, eventHash])
   @@index([status, createdAt])
+}
+
+// N-B capture-only foundation; no email provider or live sending.
+enum NotificationScope {
+  TENANT
+  ACCOUNT
+  PLATFORM
+}
+
+enum NotificationSourceState {
+  PENDING
+  WAITING_FOR_TRANSITION
+  WAITING_FOR_RECIPIENT
+  RESOLVED
+  AUDIT_ONLY
+  HISTORICAL_REVIEW
+  REVIEW_REQUIRED
+}
+
+enum NotificationProcessingState {
+  PENDING
+  CLAIMED
+  RETRY_PENDING
+  SETTLED
+  SUPPRESSED
+  CANCELED
+  MANUAL_REVIEW
+}
+
+enum NotificationDeliveryOutcome {
+  NOT_SENT
+  UNKNOWN
+  PROVIDER_ACCEPTED
+  DELIVERED_TO_SERVER
+  DELAYED
+  BOUNCED
+  COMPLAINED
+  FAILED
+}
+
+enum NotificationAttemptResult {
+  CAPTURE_INTENT
+  CAPTURE_ABANDONED
+  CAPTURED
+  DISPATCH_INTENT
+  ACCEPTED
+  KNOWN_REJECTED
+  RATE_LIMITED
+  UNKNOWN
+}
+
+enum NotificationProviderEventState {
+  VERIFIED_PENDING
+  APPLIED
+  QUARANTINED
+}
+
+enum LifecycleNoticeState {
+  OPEN
+  SATISFIED_UNDER_POLICY
+  REVIEW_REQUIRED
+  RESOLVED_BY_REVIEW
+}
+
+model NotificationSource {
+  id                 String                       @id @default(cuid())
+  canonicalKey       String                       @unique
+  scope              NotificationScope
+  kind               String
+  workspaceId        String?
+  workspace          Workspace?                   @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  subjectUserId      String?
+  subjectUser        User?                        @relation(fields: [subjectUserId], references: [id], onDelete: Restrict)
+  lifecycleEventId   String?                      @unique
+  lifecycleEvent     WorkspaceLifecycleEvent?     @relation(fields: [lifecycleEventId], references: [id], onDelete: Restrict)
+  requestId          String?
+  request            SubscriptionRequest?         @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  paymentId          String?
+  payment            SubscriptionPayment?         @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  receiptId          String?
+  receipt            SubscriptionPaymentReceipt?  @relation(fields: [receiptId], references: [id], onDelete: Restrict)
+  reversalId         String?
+  reversal           SubscriptionPaymentReversal? @relation(fields: [reversalId], references: [id], onDelete: Restrict)
+  periodId           String?
+  period             SubscriptionPeriod?          @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  auditLogId         String?
+  auditLog           AuditLog?                    @relation(fields: [auditLogId], references: [id], onDelete: Restrict)
+  platformAuditId    String?                      @unique
+  platformAudit      PlatformAuditEvent?          @relation(fields: [platformAuditId], references: [id], onDelete: Restrict)
+  milestone          String?
+  accountOperationId String?                      @unique
+  incidentKey        String?
+  effectiveAt        DateTime
+  recordedAt         DateTime                     @default(now())
+  scheduledAt        DateTime?
+  latestSendAt       DateTime?
+  policyVersion      String
+  state              NotificationSourceState      @default(PENDING)
+  nextReconcileAt    DateTime?
+  leaseToken         String?
+  leaseUntil         DateTime?
+  dispositionCode    String?
+  notice             LifecycleNotice?
+  notifications      NotificationOutbox[]
+
+  @@index([workspaceId, effectiveAt])
+  @@index([subjectUserId, effectiveAt])
+  @@index([state, nextReconcileAt, id])
+}
+
+model LifecycleNotice {
+  id                     String               @id @default(cuid())
+  sourceId               String               @unique
+  source                 NotificationSource   @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  obligationKey          String               @unique
+  milestone              String
+  dueAt                  DateTime
+  minimumLeadDeadlineAt  DateTime?
+  recipientPolicyVersion String
+  evidencePolicyVersion  String
+  required               Boolean
+  state                  LifecycleNoticeState @default(OPEN)
+  resolvedByAdminId      String?
+  resolvedBy             PlatformAdmin?       @relation(fields: [resolvedByAdminId], references: [id], onDelete: Restrict)
+  resolvedAt             DateTime?
+  resolutionReason       String?
+  evidenceReference      String?
+  notifications          NotificationOutbox[]
+  createdAt              DateTime             @default(now())
+
+  @@index([state, dueAt])
+}
+
+model NotificationOutbox {
+  engineeringTransport   String?
+  identityKeyVersion     String?
+  simulated              Boolean                       @default(false)
+  replacementAuditId     String?                       @unique
+  replacementAudit       PlatformAuditEvent?           @relation("NotificationReplacementAudit", fields: [replacementAuditId], references: [id], onDelete: Restrict)
+  permits                NotificationProviderPermit[]
+  id                     String                        @id @default(cuid())
+  sourceId               String
+  source                 NotificationSource            @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  noticeId               String?
+  notice                 LifecycleNotice?              @relation(fields: [noticeId], references: [id], onDelete: Restrict)
+  recipientUserId        String
+  recipientUser          User                          @relation(fields: [recipientUserId], references: [id], onDelete: Restrict)
+  kind                   String
+  channel                String                        @default("EMAIL")
+  templateVersion        String
+  templateDigest         String
+  recipientPolicyVersion String
+  logicalKey             String
+  generation             Int                           @default(1)
+  replacesId             String?
+  replaces               NotificationOutbox?           @relation("NotificationReplacement", fields: [replacesId], references: [id], onDelete: Restrict)
+  replacements           NotificationOutbox[]          @relation("NotificationReplacement")
+  scheduledAt            DateTime
+  latestSendAt           DateTime?
+  priority               Int
+  processingState        NotificationProcessingState   @default(PENDING)
+  deliveryOutcome        NotificationDeliveryOutcome   @default(NOT_SENT)
+  leaseToken             String?
+  leaseUntil             DateTime?
+  version                Int                           @default(1)
+  dispatchedAttempts     Int                           @default(0)
+  nextAttemptAt          DateTime?
+  firstDispatchedAt      DateTime?
+  safeRetryUntil         DateTime?
+  providerScope          String
+  providerKey            String                        @unique
+  providerMessageId      String?
+  captureAttempts        Int                           @default(0)
+  captureId              String?                       @unique
+  frozenPayloadCipher    Bytes?
+  payloadKeyVersion      String?
+  payloadHash            String?
+  destinationDigest      String?
+  identityBindingDigest  String?
+  recipientVerifiedAt    DateTime?
+  acceptedAt             DateTime?
+  deliveredAt            DateTime?
+  bouncedAt              DateTime?
+  complainedAt           DateTime?
+  lastFailureCode        String?
+  completedAt            DateTime?
+  createdAt              DateTime                      @default(now())
+  attempts               NotificationDeliveryAttempt[]
+  providerEvents         NotificationProviderEvent[]
+
+  @@unique([logicalKey, generation])
+  @@unique([providerScope, providerMessageId])
+  @@unique([id, providerScope])
+  @@unique([id, providerScope, providerKey, payloadHash])
+  @@index([processingState, nextAttemptAt, scheduledAt, priority, id])
+  @@index([sourceId, recipientUserId])
+  @@index([recipientUserId, createdAt])
+}
+
+model NotificationDeliveryAttempt {
+  mode              String                      @default("CAPTURE")
+  captureId         String?
+  id                String                      @id @default(cuid())
+  notificationId    String
+  providerScope     String
+  providerKey       String
+  payloadHash       String
+  notification      NotificationOutbox          @relation(fields: [notificationId, providerScope, providerKey, payloadHash], references: [id, providerScope, providerKey, payloadHash], onDelete: Restrict, onUpdate: Restrict)
+  runId             String?
+  run               NotificationRun?            @relation(fields: [runId], references: [id], onDelete: Restrict)
+  attemptNo         Int
+  leaseToken        String
+  startedAt         DateTime                    @default(now())
+  dispatchedAt      DateTime?
+  completedAt       DateTime?
+  result            NotificationAttemptResult   @default(CAPTURE_INTENT)
+  responseCategory  String?
+  providerMessageId String?
+  retryEligible     Boolean                     @default(false)
+  providerEvents    NotificationProviderEvent[]
+
+  @@unique([notificationId, attemptNo])
+  @@unique([id, notificationId])
+  @@index([providerScope, providerMessageId])
+  @@index([result, dispatchedAt])
+}
+
+model NotificationProviderEvent {
+  evidenceProtocol        String                         @default("SYNTHETIC")
+  candidateNotificationId String?
+  candidateAttemptId      String?
+  simulated               Boolean                        @default(false)
+  id                      String                         @id @default(cuid())
+  providerScope           String
+  providerEventId         String
+  providerMessageId       String?
+  notificationId          String?
+  notification            NotificationOutbox?            @relation(fields: [notificationId, providerScope], references: [id, providerScope], onDelete: Restrict)
+  attemptId               String?
+  attempt                 NotificationDeliveryAttempt?   @relation(fields: [attemptId, notificationId], references: [id, notificationId], onDelete: Restrict)
+  eventType               String
+  occurredAt              DateTime?
+  receivedAt              DateTime                       @default(now())
+  verifiedAt              DateTime
+  verificationKeyRef      String
+  bodyDigest              String
+  destinationDigest       String?
+  state                   NotificationProviderEventState @default(VERIFIED_PENDING)
+  failureCode             String?
+  processedAt             DateTime?
+  evidenceCipher          Bytes?
+  evidenceKeyVersion      String?
+  evidenceExpiresAt       DateTime?
+  suppressions            NotificationSuppression[]
+
+  @@unique([providerScope, providerEventId])
+  @@index([providerScope, providerMessageId])
+  @@index([state, receivedAt])
+  @@index([evidenceExpiresAt])
+}
+
+model NotificationRun {
+  simulated      Boolean                       @default(false)
+  id             String                        @id @default(cuid())
+  dryRun         Boolean
+  startedAt      DateTime                      @default(now())
+  completedAt    DateTime?
+  leaseToken     String
+  eligibleCount  Int                           @default(0)
+  processedCount Int                           @default(0)
+  retryCount     Int                           @default(0)
+  failedCount    Int                           @default(0)
+  skippedCount   Int                           @default(0)
+  failureCode    String?
+  summary        Json?
+  attempts       NotificationDeliveryAttempt[]
+
+  @@index([startedAt])
+  @@index([completedAt])
+}
+
+model NotificationSuppression {
+  id                String                     @id @default(cuid())
+  providerScope     String
+  channel           String                     @default("EMAIL")
+  destinationDigest String
+  digestKeyVersion  String
+  reasonCode        String
+  providerEventId   String?
+  providerEvent     NotificationProviderEvent? @relation(fields: [providerEventId], references: [id], onDelete: Restrict)
+  active            Boolean                    @default(true)
+  createdAt         DateTime                   @default(now())
+  reviewAt          DateTime?
+  releasedAt        DateTime?
+  releaseReason     String?
+
+  @@unique([providerScope, channel, digestKeyVersion, destinationDigest])
+  @@index([active, reviewAt])
+}
+
+model NotificationControl {
+  simulationLaneCursor Int       @default(0)
+  simulationEnabled    Boolean   @default(false)
+  key                  String    @id
+  enabled              Boolean   @default(false)
+  captureEnabled       Boolean   @default(false)
+  discoveryCursor      Int       @default(0)
+  configRevision       Int       @default(1)
+  policyVersion        String
+  settings             Json
+  pauseUntil           DateTime?
+  nextPermitAt         DateTime?
+  workerLeaseToken     String?
+  workerLeaseUntil     DateTime?
+  updatedAt            DateTime  @updatedAt
+}
+
+// Isolated N-C simulation; no production transport or restore admission.
+model NotificationProviderPermit {
+  slot           Int                 @id
+  token          String?             @unique
+  notificationId String?
+  notification   NotificationOutbox? @relation(fields: [notificationId], references: [id], onDelete: Restrict)
+  leaseUntil     DateTime?
+}
+
+model NotificationSimulationInstance {
+  scope     String?
+  id        String   @id
+  createdAt DateTime @default(now())
+}
+
+model ExportDownloadAuthorization {
+  id          String                 @id @default(cuid())
+  exportId    String
+  workspaceId String
+  export      WorkspaceExportRequest @relation(fields: [exportId, workspaceId], references: [id, workspaceId], onDelete: Restrict, onUpdate: Restrict)
+  requesterId String
+  tokenHash   String                 @unique
+  issuedAt    DateTime               @default(now())
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  revokedAt   DateTime?
+
+  @@index([requesterId, issuedAt])
+  @@index([exportId, expiresAt])
+}
+
+// Market foundation: no historical customer classification or retention schedule.
+enum MarketAvailability {
+  OPEN
+  REVIEW_REQUIRED
+  UNAVAILABLE
+}
+
+enum MarketApplicationState {
+  SUBMITTED
+  APPROVED
+  DEFERRED
+  REJECTED
+  REVOKED
+  WITHDRAWN
+}
+
+enum MarketDecisionType {
+  OPEN_POLICY
+  APPROVE
+  DEFER
+  REJECT
+  REVOKE
+  WITHDRAW
+}
+
+model MarketPolicy {
+  id                  String             @id
+  revision            Int                @unique
+  defaultAvailability MarketAvailability @default(REVIEW_REQUIRED)
+  countries           Json
+  createdAt           DateTime           @default(now())
+  submissions         MarketSubmission[]
+}
+
+model MarketApplication {
+  pay1AdmissionId       String?
+  pay1Admission         Pay1PreviewAdmission?  @relation(fields: [pay1AdmissionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  latestSubmission      MarketSubmission?      @relation("MarketLatest", fields: [latestSubmissionId, id], references: [id, applicationId], onDelete: NoAction, onUpdate: NoAction, map: "market_latest_fk")
+  operativeSubmission   MarketSubmission?      @relation("MarketOperative", fields: [operativeSubmissionId, id], references: [id, applicationId], onDelete: NoAction, onUpdate: NoAction, map: "market_operative_fk")
+  currentDecision       MarketDecision?        @relation("MarketCurrent", fields: [currentDecisionId, id], references: [id, applicationId], onDelete: NoAction, onUpdate: NoAction, map: "market_decision_fk")
+  id                    String                 @id @default(cuid())
+  applicantUserId       String
+  applicant             User                   @relation(fields: [applicantUserId], references: [id], onDelete: Restrict)
+  latestSubmissionId    String?
+  operativeSubmissionId String?
+  currentDecisionId     String?
+  state                 MarketApplicationState @default(SUBMITTED)
+  revision              Int                    @default(0)
+  createdAt             DateTime               @default(now())
+  workspace             Workspace?
+  submissions           MarketSubmission[]
+  decisions             MarketDecision[]
+
+  @@index([applicantUserId, createdAt])
+  @@index([state, createdAt])
+  @@index([pay1AdmissionId, createdAt])
+}
+
+model MarketSubmission {
+  latestFor         MarketApplication[] @relation("MarketLatest")
+  operativeFor      MarketApplication[] @relation("MarketOperative")
+  declarationSource String              @default("SELF_DECLARED")
+  id                String              @id @default(cuid())
+  applicationId     String
+  application       MarketApplication   @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  applicantUserId   String
+  applicant         User                @relation(fields: [applicantUserId], references: [id], onDelete: Restrict)
+  revision          Int
+  policyId          String
+  policy            MarketPolicy        @relation(fields: [policyId], references: [id], onDelete: Restrict)
+  country           String
+  interest          String
+  useCase           String
+  attestedAt        DateTime            @default(now())
+  idempotencyKey    String
+  payloadHash       String
+  decisions         MarketDecision[]
+
+  @@unique([applicationId, revision])
+  @@unique([applicantUserId, idempotencyKey])
+  @@unique([id, applicationId])
+}
+
+model MarketDecision {
+  currentFor          MarketApplication[] @relation("MarketCurrent")
+  applicationRevision Int?
+  id                  String              @id @default(cuid())
+  applicationId       String
+  application         MarketApplication   @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  submissionId        String
+  submission          MarketSubmission    @relation(fields: [submissionId, applicationId], references: [id, applicationId], onDelete: Restrict)
+  type                MarketDecisionType
+  actorUserId         String
+  actor               User                @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+  reviewerAdminId     String?
+  reviewer            PlatformAdmin?      @relation(fields: [reviewerAdminId], references: [id], onDelete: Restrict)
+  reason              String
+  effectiveAt         DateTime            @default(now())
+  validUntil          DateTime?
+  recordedAt          DateTime            @default(now())
+  operationKey        String              @unique
+  payloadHash         String
+
+  @@unique([id, applicationId])
+}
+
+// P-C2C synthetic legal-evidence rehearsal only. No real legal approval.
+enum LegalDocumentKind {
+  TERMS
+  PRIVACY
+  CUSTOMER_DPA
+  COOKIE_NOTICE
+  RETENTION_SCHEDULE
+}
+
+enum LegalReviewAction {
+  SIMULATED_APPROVE
+  WITHDRAW
+}
+
+enum LegalEvidenceEventType {
+  PUBLISHED
+  SUPERSEDED
+  WITHDRAWN
+  TERMS_AGREED_PRIVACY_ACKNOWLEDGED
+  SUBJECT_DETACHED
+}
+
+model LegalDocumentVersion {
+  id              String               @id @default(cuid())
+  kind            LegalDocumentKind
+  version         String
+  language        String
+  format          String               @default("TEXT_UTF8")
+  rendererVersion String               @default("PLAIN_UTF8-v1")
+  content         Bytes
+  contentHash     String
+  hashAlgorithm   String               @default("SHA-256")
+  byteLength      Int
+  synthetic       Boolean              @default(true)
+  createdAt       DateTime             @default(now())
+  createdById     String
+  createdBy       PlatformAdmin        @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  reviews         LegalVersionReview[]
+  termsSets       LegalPublication[]   @relation("LegalTerms")
+  privacySets     LegalPublication[]   @relation("LegalPrivacy")
+
+  @@unique([kind, version, language])
+}
+
+model LegalVersionReview {
+  id                String               @id @default(cuid())
+  versionId         String
+  version           LegalDocumentVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  action            LegalReviewAction
+  reviewerId        String
+  reviewer          PlatformAdmin        @relation(fields: [reviewerId], references: [id], onDelete: Restrict)
+  evidenceReference String
+  reason            String
+  recordedAt        DateTime             @default(now())
+  termsSets         LegalPublication[]   @relation("LegalTermsReview")
+  privacySets       LegalPublication[]   @relation("LegalPrivacyReview")
+
+  @@unique([versionId, action])
+}
+
+model LegalPublication {
+  id              String                    @id
+  version         String                    @unique
+  termsId         String
+  terms           LegalDocumentVersion      @relation("LegalTerms", fields: [termsId], references: [id], onDelete: Restrict)
+  privacyId       String
+  privacy         LegalDocumentVersion      @relation("LegalPrivacy", fields: [privacyId], references: [id], onDelete: Restrict)
+  termsReviewId   String
+  termsReview     LegalVersionReview        @relation("LegalTermsReview", fields: [termsReviewId], references: [id], onDelete: Restrict)
+  privacyReviewId String
+  privacyReview   LegalVersionReview        @relation("LegalPrivacyReview", fields: [privacyReviewId], references: [id], onDelete: Restrict)
+  manifest        Bytes
+  manifestHash    String
+  publishedAt     DateTime
+  effectiveAt     DateTime
+  publisherId     String
+  publisher       PlatformAdmin             @relation(fields: [publisherId], references: [id], onDelete: Restrict)
+  synthetic       Boolean                   @default(true)
+  presentations   LegalPresentation[]
+  receipts        LegalAcceptanceEvidence[]
+  controls        LegalPublicationControl[]
+  events          LegalEvidenceEvent[]
+}
+
+model LegalPublicationControl {
+  id            String            @id
+  publicationId String?
+  publication   LegalPublication? @relation(fields: [publicationId], references: [id], onDelete: Restrict)
+  revision      Int               @default(0)
+}
+
+model LegalEvidenceSubject {
+  id                       String                    @id @default(cuid())
+  userId                   String?                   @unique
+  user                     User?                     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  createdAt                DateTime                  @default(now())
+  detachedAt               DateTime?
+  retentionReviewReference String?
+  presentations            LegalPresentation[]
+  receipts                 LegalAcceptanceEvidence[]
+  events                   LegalEvidenceEvent[]
+}
+
+model LegalPresentation {
+  id              String                    @id @default(cuid())
+  publicationId   String
+  publication     LegalPublication          @relation(fields: [publicationId], references: [id], onDelete: Restrict)
+  subjectId       String
+  subject         LegalEvidenceSubject      @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  controlRevision Int
+  presentedAt     DateTime                  @default(now())
+  expiresAt       DateTime
+  receipts        LegalAcceptanceEvidence[]
+
+  @@unique([id, publicationId, subjectId])
+}
+
+model LegalAcceptanceEvidence {
+  id                    String               @id @default(cuid())
+  subjectId             String
+  subject               LegalEvidenceSubject @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  publicationId         String
+  publication           LegalPublication     @relation(fields: [publicationId], references: [id], onDelete: Restrict)
+  presentationId        String
+  presentation          LegalPresentation    @relation(fields: [presentationId, publicationId, subjectId], references: [id, publicationId, subjectId], onDelete: Restrict)
+  termsAgreement        Boolean
+  privacyAcknowledgment Boolean
+  source                String               @default("REHEARSAL_AUTHENTICATED_EXPLICIT")
+  acceptedAt            DateTime             @default(now())
+  synthetic             Boolean              @default(true)
+  events                LegalEvidenceEvent[]
+
+  @@unique([subjectId, publicationId])
+}
+
+model LegalEvidenceEvent {
+  id            String                   @id @default(cuid())
+  type          LegalEvidenceEventType
+  publicationId String?
+  publication   LegalPublication?        @relation(fields: [publicationId], references: [id], onDelete: Restrict)
+  subjectId     String?
+  subject       LegalEvidenceSubject?    @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  receiptId     String?
+  receipt       LegalAcceptanceEvidence? @relation(fields: [receiptId], references: [id], onDelete: Restrict)
+  actorAdminId  String?
+  actor         PlatformAdmin?           @relation(fields: [actorAdminId], references: [id], onDelete: Restrict)
+  operationKey  String                   @unique
+  recordedAt    DateTime                 @default(now())
+  synthetic     Boolean                  @default(true)
+}
+
+// Empty by default: a separately reviewed operator record is required for PAY-1.
+model Pay1PreviewAdmission {
+  id                String              @id
+  projectId         String
+  deploymentId      String
+  origin            String
+  databaseHost      String
+  databaseName      String
+  clerkHost         String
+  actorExternalIds  String[]
+  approvalReference String
+  syntheticOnly     Boolean             @default(true)
+  notBefore         DateTime
+  expiresAt         DateTime
+  revokedAt         DateTime?
+  createdAt         DateTime            @default(now())
+  applications      MarketApplication[]
 }

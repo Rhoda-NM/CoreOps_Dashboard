@@ -2,12 +2,21 @@ import "server-only";
 import { prisma } from "../db/prisma";
 import type { Prisma } from "@prisma/client";
 import { CommercialError } from "./policy";
+import { lifecycleEnforcementEnabled } from "../lifecycle/config";
+import { resolveLifecycle } from "../lifecycle/service";
+import { requireWorkspaceMarket } from "../market/access";
 type DB = Prisma.TransactionClient;
 export async function commercialAccess(workspaceId: string, db: DB = prisma, now = new Date()) {
+  try { await requireWorkspaceMarket(db, workspaceId, false); } catch {
+    const workspace = await db.workspace.findUniqueOrThrow({ where: { id: workspaceId }, select: { activationStatus: true, subscription: { select: { status: true } } } });
+    return { workspace, period: null, lifecycle: null, read: false, write: false, inGrace: false };
+  }
   const workspace = await db.workspace.findUniqueOrThrow({ where: { id: workspaceId }, select: { activationStatus: true, subscription: { select: { status: true } } } });
-  const period = await db.subscriptionPeriod.findFirst({ where: { workspaceId, revokedAt: null, startsAt: { lte: now } }, orderBy: { endsAt: "desc" } });
+  const lifecycle = lifecycleEnforcementEnabled() ? await resolveLifecycle(workspaceId, db, now) : null;
+  const period = lifecycle ? lifecycle.period : await db.subscriptionPeriod.findFirst({ where: { workspaceId, revokedAt: null, startsAt: { lte: now } }, orderBy: { endsAt: "desc" } });
   const enabled = workspace.activationStatus === "ACTIVE" && !!workspace.subscription && !["PENDING_ACTIVATION", "TRIALING", "SUSPENDED"].includes(workspace.subscription.status) && !!period;
-  return { workspace, period, read: enabled, write: enabled && period.graceEndsAt > now, inGrace: enabled && period.endsAt <= now && period.graceEndsAt > now };
+  const canceled = lifecycle?.state === "CANCELED" || (!!lifecycle && workspace.subscription?.status === "CANCELED");
+  return { workspace, period, lifecycle, read: enabled && !canceled, write: enabled && !canceled && period.graceEndsAt > now, inGrace: enabled && !canceled && period.endsAt <= now && period.graceEndsAt > now };
 }
 export async function requireCommercialAccess(workspaceId: string, write = false, db: DB = prisma, feature?: string) {
   const access = await commercialAccess(workspaceId, db);

@@ -24,5 +24,9 @@ export async function requireClerkIdentity({ allowUnverifiedEmail = false }: { a
   }
   if (!profile || profile.id !== userId || profile.banned || profile.locked) throw new IdentityError("ACCOUNT_UNAVAILABLE");
   if (!allowUnverifiedEmail && (!profile.primaryEmailAddress || profile.primaryEmailAddress.verification?.status !== "verified")) throw new IdentityError("VERIFICATION_REQUIRED");
+  if (process.env.COREOPS_PAY1_PREVIEW_ENABLED === "true") {
+    const { requirePay1Actor } = await import("../preview/pay1-admission");
+    await requirePay1Actor(profile.id);
+  }
   return profile;
 }

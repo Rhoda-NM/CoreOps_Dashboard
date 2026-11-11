@@ -1,5 +1,8 @@
 # Phase 5 — Isolated HTTPS and Clerk acceptance
 
+8 November follow-up: [isolated Clerk configuration, live baseline findings and acceptance checklist](preview-clerk-setup.md). The operator reports the Preview database is ready and has supplied the Vercel project; its separate Vercel account was not accessed. No isolated Clerk instance or authenticated HTTPS acceptance is claimed; the actual browser/configuration prerequisites remain pending.
+
+
 7 November 2026. **Prepared; remote setup and signed-in acceptance pending.** The operator identified `workflowconnect.io` and will connect the project to Vercel when ready for preview. This does not establish a preview URL, a dedicated staging namespace, database mapping, TLS, or an isolated Clerk instance. No remote configuration or deployment has been performed.
 
 See [Phase 4 results](phase4-navigation-and-phase5-acceptance.md) and the [nonsecret configuration template](phase5-staging.env.example). The template is not an active `.env` file. Do not copy local data, fixture subscriptions, administrator grants or production secrets into preview.

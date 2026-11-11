@@ -2,6 +2,8 @@
 
 import { revalidateWorkspacePath } from "@/server/auth/revalidate-workspace";
 import { z } from "zod";
+import { unstable_rethrow } from "next/navigation";
+import { quickInvoiceFailure, type QuickInvoiceErrorCode } from "@/server/privacy/safe-failure";
 
 import { createInvoiceForClient } from "@/server/services/invoices.service";
 
@@ -16,6 +18,8 @@ const quickInvoiceSchema = z.object({
 export type QuickInvoiceActionState = {
   success: boolean;
   message: string;
+  code?: QuickInvoiceErrorCode | "QUICK_INVOICE_VALIDATION";
+  reference?: string;
   fieldErrors?: {
     clientId?: string;
     projectId?: string;
@@ -43,6 +47,7 @@ export async function quickCreateInvoiceAction(
     return {
       success: false,
       message: "Please correct the highlighted fields.",
+      code: "QUICK_INVOICE_VALIDATION",
       fieldErrors: {
         clientId: errors.clientId?.[0],
         projectId: errors.projectId?.[0],
@@ -53,38 +58,33 @@ export async function quickCreateInvoiceAction(
     };
   }
 
+  let invoice;
   try {
-    await createInvoiceForClient({
+    invoice = await createInvoiceForClient({
       clientId: result.data.clientId,
       projectId: result.data.projectId,
       invoiceNo: result.data.invoiceNo,
       amount: result.data.amount.toString(),
       dueDate: result.data.dueDate,
+      status: "DRAFT",
     });
+  } catch (error) {
+    unstable_rethrow(error); // Preserve Next authentication redirects/not-found control flow.
+    const failure = quickInvoiceFailure(error, "CREATE");
+    return { success: false, message: `${failure.message} Reference: ${failure.reference}`, code: failure.code, reference: failure.reference, fieldErrors: {} };
+  }
 
+  try {
     await revalidateWorkspacePath("/dashboard");
     await revalidateWorkspacePath("/invoices");
     await revalidateWorkspacePath(`/clients/${result.data.clientId}`);
-
-    if (result.data.projectId) {
-      await revalidateWorkspacePath(`/projects/${result.data.projectId}`);
-    }
-
-    return {
-      success: true,
-      message: "Invoice draft created.",
-      fieldErrors: {},
-    };
+    if (result.data.projectId) await revalidateWorkspacePath(`/projects/${result.data.projectId}`);
   } catch (error) {
-    console.error("Quick invoice creation failed:", error);
-
-    return {
-      success: false,
-      message:
-        error instanceof Error
-          ? error.message
-          : "Unable to create the invoice draft.",
-      fieldErrors: {},
-    };
+    unstable_rethrow(error);
+    const failure = quickInvoiceFailure(error, "REFRESH");
+    // Creation already committed. Do not encourage a duplicate creation retry.
+    return { success: true, message: `${failure.message} Reference: ${failure.reference}`, code: failure.code, reference: failure.reference, fieldErrors: {} };
   }
+
+  return { success: true, message: invoice.status === "DRAFT" ? "Invoice draft created." : "Invoice created.", fieldErrors: {} };
 }

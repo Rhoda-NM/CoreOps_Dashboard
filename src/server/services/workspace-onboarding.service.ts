@@ -5,6 +5,9 @@ import { getCurrentUser } from "@/server/auth/get-current-user";
 import { requireCentralHost } from "@/server/routing/request-context";
 import { generateWorkspaceSlug, selectedWorkspaceSlugMessage } from "@/lib/routing/workspace-slug";
 import { z } from "zod";
+import { requireApplicationEligibility } from "../market/access";
+import { requireMarketRehearsal } from "../market/config";
+import { AccessError } from "../authorization/errors";
 
 export const workspaceNameSchema = z.string().trim().min(2, "Workspace name is required.").max(120, "Use no more than 120 characters.");
 function isSlugCollision(error: unknown): boolean {
@@ -21,8 +24,9 @@ function isSlugCollision(error: unknown): boolean {
 export class WorkspaceAddressUnavailable extends Error {
   constructor() { super("This workspace address is unavailable. Please choose another."); }
 }
-export async function createInitialWorkspace(name: unknown, selectedSlug?: unknown) {
+export async function createInitialWorkspace(name: unknown, selectedSlug?: unknown, applicationId?: string) {
   await requireCentralHost();
+  requireMarketRehearsal();
   if (selectedSlug !== undefined) {
     const problem = selectedWorkspaceSlugMessage(selectedSlug);
     if (problem) throw new Error(problem);
@@ -36,14 +40,22 @@ export async function createInitialWorkspace(name: unknown, selectedSlug?: unkno
       // transaction, so retrying only workspace.create inside it is unsafe.
       return await prisma.$transaction(async tx => {
         await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${user.id} FOR UPDATE`;
-        const existing = await tx.workspaceMember.findFirst({ where: { userId: user.id, status: "ACTIVE" }, include: { workspace: true } });
-        if (existing) return existing.workspace;
+        const identity = await tx.user.findUniqueOrThrow({ where: { id: user.id }, select: { externalId: true, email: true } });
+        if (identity.externalId !== user.externalId || identity.email !== user.email) throw new AccessError("FORBIDDEN");
+        if (!applicationId) throw new AccessError("FORBIDDEN");
+        await tx.$queryRaw`SELECT id FROM "MarketApplication" WHERE id=${applicationId} FOR UPDATE`;
+        const application = await requireApplicationEligibility(tx, applicationId);
+        if (application.applicantUserId !== user.id) throw new AccessError("FORBIDDEN");
+        const previous = await tx.workspace.findUnique({ where: { marketApplicationId: applicationId } });
+        if (previous) return previous;
+        const existing = await tx.workspaceMember.findFirst({ where: { userId: user.id, status: "ACTIVE" } });
+        if (existing) throw new AccessError("CONFLICT");
         const workspace = await tx.workspace.create({ data: {
-          name: validName, slug, activationStatus: "PENDING_ACTIVATION",
+          name: validName, slug, marketApplicationId: applicationId, activationStatus: "PENDING_ACTIVATION",
           subscription: { create: { status: "PENDING_ACTIVATION" } },
         } });
         await tx.workspaceMember.create({ data: { userId: user.id, workspaceId: workspace.id, role: "OWNER" } });
-        await tx.auditLog.create({ data: { workspaceId: workspace.id, actorUserId: user.id, action: "WORKSPACE_CREATED", resourceType: "Workspace", resourceId: workspace.id } });
+        await tx.auditLog.create({ data: { workspaceId: workspace.id, actorUserId: user.id, action: "WORKSPACE_CREATED", resourceType: "Workspace", resourceId: workspace.id, metadata: { marketApplicationId: application.id, marketDecisionId: application.currentDecisionId, marketSubmissionId: application.operativeSubmissionId } } });
         return workspace;
       });
     } catch (error) {
