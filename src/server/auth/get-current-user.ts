@@ -1,4 +1,5 @@
 import "server-only";
+import { Pay1AdmissionError } from "../preview/pay1-error";
 import { pay1Enabled } from "../preview/pay1-config";
 import { cache } from "react";
 import { prisma } from "@/server/db/prisma";
@@ -18,7 +19,7 @@ export const getCurrentUser = cache(async () => {
   if (emailOwner && emailOwner.externalId !== externalId) throw new IdentityError("IDENTITY_CONFLICT");
   if (!existing && getAuthConfiguration().requireLegal) {
     if (pay1Enabled()) {
-      if (!await isRegistrationReady()) throw new IdentityError("LEGAL_ACCEPTANCE_REQUIRED");
+      if (!await isRegistrationReady()) throw new Pay1AdmissionError("PAY1_REGISTRATION_UNAVAILABLE");
     } else if (!profile.legalAcceptedAt || !await isRegistrationReady()) throw new IdentityError("LEGAL_ACCEPTANCE_REQUIRED");
   }
   const data = { email, name: [profile.firstName, profile.lastName].filter(Boolean).join(" ") || null, imageUrl: profile.imageUrl };

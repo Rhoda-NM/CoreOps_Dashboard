@@ -1,7 +1,8 @@
 import "server-only";
-import type { Prisma } from "@prisma/client";
+import { Prisma, type Pay1PreviewAdmission } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { AccessError } from "../authorization/errors";
+import { Pay1AdmissionError } from "./pay1-error";
 import { pay1Enabled, pay1Target } from "./pay1-config";
 type DB = Prisma.TransactionClient;
 
@@ -9,16 +10,29 @@ type DB = Prisma.TransactionClient;
 // evidence for this exact admitted case after its test window closes.
 export async function requirePay1Admission(db: DB = prisma, active = true) {
   const target = pay1Target();
-  await db.$queryRaw`SELECT id FROM "Pay1PreviewAdmission" WHERE id=${target.id} FOR SHARE`;
-  const row = await db.pay1PreviewAdmission.findUniqueOrThrow({ where: { id: target.id } });
-  const [{ now }] = await db.$queryRaw<{ now: Date }[]>`SELECT clock_timestamp() AS now`;
-  if (row.id !== target.id || row.projectId !== target.projectId || row.deploymentId !== target.deploymentId || row.origin !== target.origin || row.databaseHost !== target.databaseHost || row.databaseName !== target.databaseName || row.clerkHost !== target.clerkHost || !row.syntheticOnly || !row.approvalReference || (active && (row.revokedAt || now < row.notBefore || now >= row.expiresAt))) throw new AccessError("FORBIDDEN");
+  let row: Pay1PreviewAdmission | null;
+  let now: Date;
+  try {
+    await db.$queryRaw`SELECT id FROM "Pay1PreviewAdmission" WHERE id=${target.id} FOR SHARE`;
+    row = await db.pay1PreviewAdmission.findUnique({ where: { id: target.id } });
+    [{ now }] = await db.$queryRaw<{ now: Date }[]>`SELECT clock_timestamp() AS now`;
+  } catch (error) {
+    const missingSchema = error instanceof Prisma.PrismaClientKnownRequestError && (
+      ["P2021", "P2022"].includes(error.code) ||
+      (error.code === "P2010" && ["42P01", "42703"].includes(String(error.meta?.code)))
+    );
+    throw new Pay1AdmissionError(missingSchema ? "PAY1_SCHEMA_REQUIRED" : "PAY1_ADMISSION_UNAVAILABLE");
+  }
+  if (!(now instanceof Date) || !Number.isFinite(+now)) throw new Pay1AdmissionError("PAY1_ADMISSION_UNAVAILABLE");
+  if (!row) throw new Pay1AdmissionError("PAY1_ADMISSION_REQUIRED");
+  if (row.id !== target.id || row.projectId !== target.projectId || row.deploymentId !== target.deploymentId || row.origin !== target.origin || row.databaseHost !== target.databaseHost || row.databaseName !== target.databaseName || row.clerkHost !== target.clerkHost || !row.syntheticOnly || !row.approvalReference) throw new Pay1AdmissionError("PAY1_TARGET_MISMATCH");
+  if (active && (row.revokedAt || now < row.notBefore || now >= row.expiresAt)) throw new Pay1AdmissionError("PAY1_WINDOW_CLOSED");
   return row;
 }
 export async function requirePay1Actor(externalId: string, db: DB = prisma) {
   if (!pay1Enabled()) return null;
   const row = await requirePay1Admission(db);
-  if (!row.actorExternalIds.includes(externalId)) throw new AccessError("FORBIDDEN");
+  if (!row.actorExternalIds.includes(externalId)) throw new Pay1AdmissionError("PAY1_ACTOR_NOT_ADMITTED");
   return row;
 }
 export async function requirePay1Case(db: DB, applicationId: string, active = true) {

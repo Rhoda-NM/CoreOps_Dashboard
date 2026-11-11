@@ -3,6 +3,7 @@ import { requireCentralHost } from "@/server/routing/request-context";
 import { redirect } from "next/navigation";
 
 import { WorkspaceOnboardingForm } from "@/features/workspaces/components/WorkSpaceOnboardingForm";
+import { accountEntry } from "@/server/auth/account-entry";
 import { getCurrentUser } from "@/server/auth/get-current-user";
 import { randomUUID } from "node:crypto";
 import { countryCodes } from "@/server/market/service";
@@ -10,9 +11,9 @@ import { prisma } from "@/server/db/prisma";
 
 export default async function OnboardingPage() {
   const { policy } = await requireCentralHost();
-  const user = await getCurrentUser();
+  const user = await accountEntry(getCurrentUser);
 
-  const existingMembership = await prisma.workspaceMember.findFirst({
+  const existingMembership = await accountEntry(() => prisma.workspaceMember.findFirst({
     where: {
       userId: user.id,
       status: "ACTIVE",
@@ -20,7 +21,7 @@ export default async function OnboardingPage() {
     select: {
       workspaceId: true,
     },
-  });
+  }));
 
   if (existingMembership) {
     redirect("/dashboard");

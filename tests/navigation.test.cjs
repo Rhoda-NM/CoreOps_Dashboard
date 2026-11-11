@@ -52,7 +52,10 @@ test('Clerk sign-in and sign-up force only validated central continuations and p
   const signIn=await SignIn({searchParams:Promise.resolve({returnTo:invitation})});
   assert.equal(signIn.props.children.props.forceRedirectUrl,policy.appOrigin+invitation);assert.equal(signIn.props.children.props.signUpForceRedirectUrl,policy.appOrigin+invitation);
   const signUp=await SignUp({searchParams:Promise.resolve({returnTo:invitation})});
-  assert.equal(signUp.props.children.props.children[0].props.forceRedirectUrl,policy.appOrigin+invitation);
+  const signupControls=signUp.props.children.props.children.filter(child=>child?.props?.path==='/sign-up');
+  assert.equal(signupControls.length,1);
+  assert.equal(signupControls[0].props.forceRedirectUrl,policy.appOrigin+invitation);
+  assert.equal(signupControls[0].props.signInForceRedirectUrl,policy.appOrigin+invitation);
   registrationReady=false;
   try {
    const blocked=await SignUp({searchParams:Promise.resolve({returnTo:invitation})});

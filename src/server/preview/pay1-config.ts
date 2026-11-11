@@ -1,5 +1,5 @@
 import "server-only";
-import { AccessError } from "../authorization/errors";
+import { Pay1AdmissionError } from "./pay1-error";
 
 export function pay1Enabled() { return process.env.COREOPS_PAY1_PREVIEW_ENABLED === "true"; }
 // Only deployment-owned, server-side inputs. Request headers never supply admission.
@@ -18,5 +18,5 @@ export function pay1Target() {
     const testIdentityOnly = clerkKey.startsWith("pk_test_") && /^[a-z0-9-]+\.clerk\.accounts\.dev$/.test(clerkHost) && env.CLERK_SECRET_KEY?.startsWith("sk_test_");
     if (!runtimeMatches || !deploymentMatches || !databaseAllowed || !originMatches || !testIdentityOnly || env.PAYSTACK_LIVE_SECRET_KEY || prohibited.some(key => env[key] === "true")) throw new Error();
     return { id: env.COREOPS_PAY1_ADMISSION_ID!, projectId: env.VERCEL_PROJECT_ID!, deploymentId: env.VERCEL_DEPLOYMENT_ID!, origin: origin.origin, databaseHost: `${database.hostname}:${database.port || "5432"}`, databaseName: decodeURIComponent(database.pathname.slice(1)), clerkHost };
-  } catch { throw new AccessError("FORBIDDEN"); }
+  } catch { throw new Pay1AdmissionError("PAY1_CONFIGURATION_REQUIRED"); }
 }

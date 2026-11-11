@@ -2,13 +2,13 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const Module=require('node:module');
 const path=require('node:path');
-require('ts-node').register({transpileOnly:true,compilerOptions:{module:'CommonJS',moduleResolution:'Node'}});
+require('ts-node').register({transpileOnly:true,compilerOptions:{module:'CommonJS',moduleResolution:'Node',jsx:'react-jsx'}});
 const load=Module._load,users=new Map();
 let profile,admission,remote,verified=true,sessionStatus='active',mfa=true,role='SUPER_ADMIN',receiptCalls=0;
 const db={
  $queryRaw:async(strings)=>strings.join('').includes('clock_timestamp')?[{now:new Date()}]:[],
  $transaction:async fn=>fn(db),
- pay1PreviewAdmission:{findUniqueOrThrow:async()=>{if(!admission)throw Error('MISSING');return admission;}},
+ pay1PreviewAdmission:{findUnique:async()=>{return admission;}},
  user:{
   findUnique:async({where})=>[...users.values()].find(u=>where.id?u.id===where.id:u.externalId===where.externalId)||null,
   findFirst:async({where})=>[...users.values()].find(u=>u.email.toLowerCase()===where.email.equals.toLowerCase())||null,
@@ -22,7 +22,10 @@ Module._load=function(name,parent,main){
  if(name.endsWith('/db/prisma')||name==='@/server/db/prisma')return {prisma:db};
  if(name.endsWith('/routing/request-context'))return {requireCentralHost:async()=>({}),requestRoutingContext:async()=>{throw Error('NO_LEGAL_REDIRECT');}};
  if(name.endsWith('/auth-navigation'))return {authenticationDestination:async()=>'/sign-in'};
- if(name==='@clerk/nextjs/server')return {auth:async()=>({userId:profile.id,sessionId:'synthetic-session',sessionClaims:{fva:mfa?[0,0]:[0,-1]},has:()=>mfa}),clerkClient:async()=>({sessions:{getSession:async()=>({userId:profile.id,status:sessionStatus,expireAt:Date.now()+60000})}}),currentUser:async()=>({...profile,primaryEmailAddress:{...profile.primaryEmailAddress,verification:{status:verified?'verified':'unverified'}}})};
+ if(name==='@clerk/nextjs')return {SignOutButton:props=>props.children};
+ if(name.endsWith('/SiteLink'))return {default:props=>require('react').createElement('a',{href:props.href},props.children)};
+ if(name.endsWith('/LegalLinks'))return {LegalLinks:()=>null};
+ if(name==='@clerk/nextjs/server')return {auth:async()=>({userId:profile.signedOut?null:profile.id,sessionId:profile.signedOut?null:'synthetic-session',sessionClaims:{fva:mfa?[0,0]:[0,-1]},has:()=>mfa}),clerkClient:async()=>({sessions:{getSession:async()=>({userId:profile.id,status:sessionStatus,expireAt:Date.now()+60000})}}),currentUser:async()=>({...profile,primaryEmailAddress:{...profile.primaryEmailAddress,verification:{status:verified?'verified':'unverified'}}})};
  if(name.startsWith('@/'))name=path.resolve(__dirname,'../src',name.slice(2));
  return load.call(this,name,parent,main);
 };
@@ -59,6 +62,15 @@ test('PAY-1 registration exception is synthetic, scoped and never legal approval
  await t.test('test exception cannot manufacture acceptance even if approval flags are accidentally set',async()=>{reset();process.env.COREOPS_LEGAL_DOCUMENTS_APPROVED='true';await assert.rejects(legal.recordLegalAcceptance(true,{termsVersion:'anything',privacyVersion:'anything'}));assert.equal(receiptCalls,0);});
  await t.test('platform role and strict MFA stay independent',async()=>{
   reset();await platform.requirePlatform('activate');mfa=false;await assert.rejects(platform.requirePlatform('activate'));mfa=true;role='BILLING_ADMIN';await assert.rejects(platform.requirePlatform('activate'));
+ });
+ await t.test('recovery shows current PAY-1 status rather than old legal timestamp barrier',async()=>{
+  const Recovery=require('../src/app/account/recovery/page.tsx').default;
+  // Inspect the server-returned tree; NODE_ENV changes in these config tests
+  // intentionally mix test modes, so do not mount a mismatched React renderer.
+  const renderToStaticMarkup=value=>{if(value==null)return '';if(typeof value==='string'||typeof value==='number')return String(value);if(Array.isArray(value))return value.map(renderToStaticMarkup).join(' ');return value.props?renderToStaticMarkup(value.props.children):'';};
+  reset();let html=renderToStaticMarkup(await Recovery());assert.match(html,/Continue with your WorkflowConnect account/);assert.doesNotMatch(html,/LEGAL_ACCEPTANCE_REQUIRED/);
+  reset();profile.id='user_Unlisted';html=renderToStaticMarkup(await Recovery());assert.match(html,/PAY1_ACTOR_NOT_ADMITTED/);assert.doesNotMatch(html,/synthetic@example.test|user_Unlisted/);
+  reset();profile.signedOut=true;await assert.rejects(Recovery(),error=>String(error.digest).startsWith('NEXT_REDIRECT'));
  });
  await t.test('production and ordinary non-PAY-1 registration retain existing legal gates',async()=>{
   reset();process.env.VERCEL_ENV='production';assert.equal(await registration.isRegistrationReady(),false);await assert.rejects(identity.getCurrentUser());assert.equal(users.size,0);

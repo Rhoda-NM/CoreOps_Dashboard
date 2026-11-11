@@ -6,7 +6,7 @@ const load=Module._load;
 let row,app,now=new Date('2030-01-01T12:00:00Z');
 const db={
  $queryRaw:async(strings)=>strings.join('').includes('clock_timestamp')?[{now}]:[],
- pay1PreviewAdmission:{findUniqueOrThrow:async()=>{if(!row)throw Error('MISSING');return row;}},
+ pay1PreviewAdmission:{findUnique:async()=>{return row;}},
  marketApplication:{findUniqueOrThrow:async()=>app},
  marketSubmission:{findUniqueOrThrow:async()=>({country:'KE'})},
  marketDecision:{findFirstOrThrow:async()=>({type:'OPEN_POLICY',effectiveAt:new Date('2030-01-01T11:00:00Z')})},
@@ -41,6 +41,17 @@ test('PAY-1 scoped preview admission, no database or provider calls',async t=>{
  await t.test('flag alone and mismatched database/deployment/Clerk identity cannot admit',async()=>{
   for(const field of ['id','projectId','deploymentId','origin','databaseHost','databaseName','clerkHost']){reset();row[field]='wrong';await assert.rejects(admission.requirePay1Admission(db));}
   reset();row=null;await assert.rejects(admission.requirePay1Admission(db));
+ });
+ await t.test('admission errors carry safe reasons without raw database details',async()=>{
+  const {Prisma}=require('@prisma/client');const original=db.pay1PreviewAdmission.findUnique;
+  try{
+   reset();row=null;await assert.rejects(admission.requirePay1Admission(db),error=>error.reason==='PAY1_ADMISSION_REQUIRED');
+   reset();row.deploymentId='dpl_Other';await assert.rejects(admission.requirePay1Admission(db),error=>error.reason==='PAY1_TARGET_MISMATCH');
+   reset();db.pay1PreviewAdmission.findUnique=async()=>{throw new Prisma.PrismaClientKnownRequestError('SENSITIVE_MARKER',{code:'P2021',clientVersion:'fixture'});};
+   await assert.rejects(admission.requirePay1Admission(db),error=>error.reason==='PAY1_SCHEMA_REQUIRED'&&!error.message.includes('SENSITIVE_MARKER'));
+   db.pay1PreviewAdmission.findUnique=async()=>{throw new Prisma.PrismaClientKnownRequestError('SENSITIVE_MARKER',{code:'P2010',clientVersion:'fixture',meta:{code:'42P01'}});};await assert.rejects(admission.requirePay1Admission(db),error=>error.reason==='PAY1_SCHEMA_REQUIRED');
+   db.pay1PreviewAdmission.findUnique=async()=>{throw new Error('SENSITIVE_MARKER');};await assert.rejects(admission.requirePay1Admission(db),error=>error.reason==='PAY1_ADMISSION_UNAVAILABLE'&&!error.message.includes('SENSITIVE_MARKER'));
+  }finally{db.pay1PreviewAdmission.findUnique=original;}
  });
  await t.test('only explicit test actors and test-bound new cases admit',async()=>{
   reset();gate.requireMarketRehearsal();assert.equal((await admission.requirePay1Actor('user_Test',db)).id,row.id);
