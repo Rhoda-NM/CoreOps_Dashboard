@@ -35,6 +35,14 @@ test('PAY-1 scoped preview admission, no database or provider calls',async t=>{
  await t.test('target rejects production, custom environments, missing runtime identifiers and local spoofing',()=>{
   for(const patch of [{VERCEL_ENV:'production'},{COREOPS_ENVIRONMENT:'production'},{VERCEL_TARGET_ENV:'staging'},{VERCEL:''},{VERCEL_PROJECT_ID:''},{VERCEL_DEPLOYMENT_ID:''},{DATABASE_URL:'postgresql://u:p@localhost/preview?sslmode=require'},{DATABASE_URL:'postgresql://u:p@db.example.test/preview'},{COREOPS_APP_ORIGIN:'http://pay1.example.test'},{COREOPS_ROUTING_MODE:'subdomain'},{CLERK_SECRET_KEY:'sk_live_SYNTHETIC'},{PAYSTACK_LIVE_SECRET_KEY:'sk_live_SYNTHETIC'}]){reset();Object.assign(process.env,patch);assert.throws(config.pay1Target);}
  });
+ await t.test('configuration reports individual failed names without values',()=>{
+  reset();assert.deepEqual(config.pay1ConfigurationIssues(),[]);
+  for(const key of ['VERCEL','VERCEL_ENV','COREOPS_ENVIRONMENT','VERCEL_PROJECT_ID','VERCEL_DEPLOYMENT_ID','COREOPS_PAY1_ADMISSION_ID','DATABASE_URL','COREOPS_APP_ORIGIN','COREOPS_ROUTING_MODE','COREOPS_MARKETING_ORIGIN','COREOPS_PREVIEW_HOSTS','NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY','CLERK_SECRET_KEY']){
+   const env={...baseline,[key]:'invalid!SENSITIVE_MARKER'};const issues=config.pay1ConfigurationIssues(env);assert.ok(issues.includes(key),key);assert.ok(issues.every(name=>!name.includes('SENSITIVE_MARKER')));
+  }
+  const issues=config.pay1ConfigurationIssues({...baseline,PAYSTACK_LIVE_SECRET_KEY:'sk_live_SENSITIVE_MARKER',COREOPS_NOTIFICATIONS_SEND_ENABLED:'true'});assert.ok(issues.includes('PAYSTACK_LIVE_SECRET_KEY'));assert.ok(issues.includes('COREOPS_NOTIFICATIONS_SEND_ENABLED'));
+  process.env.COREOPS_ENVIRONMENT='SENSITIVE_MARKER';assert.throws(config.pay1Target,error=>error.reason==='PAY1_CONFIGURATION_REQUIRED'&&error.failedSettings.includes('COREOPS_ENVIRONMENT')&&!JSON.stringify(error).includes('SENSITIVE_MARKER'));
+ });
  await t.test('all unrelated rehearsal, sending and lifecycle flags must remain disabled',()=>{
   for(const k of ['COREOPS_MARKET_REHEARSAL_ENABLED','COREOPS_LEGAL_CATALOG_REHEARSAL_ENABLED','COREOPS_LIFECYCLE_ENFORCEMENT_ENABLED','COREOPS_LIFECYCLE_PROCESSING_ENABLED','COREOPS_SECURE_EXPORTS_ENABLED','COREOPS_NOTIFICATIONS_CAPTURE_ENABLED','COREOPS_NOTIFICATIONS_SEND_ENABLED','COREOPS_NOTIFICATIONS_SIMULATION_ENABLED','COREOPS_RESEND_ENGINEERING_ENABLED','PAYSTACK_LIVE_CHECKOUT_ENABLED']){reset();process.env[k]='true';assert.throws(config.pay1Target);}
  });

@@ -22,6 +22,11 @@ test('account entry handles closed expected reasons without exposing exceptions'
  await t.test('PAY-1 failure retains actionable nonsecret reason',async()=>{
   for(const reason of ['PAY1_CONFIGURATION_REQUIRED','PAY1_SCHEMA_REQUIRED','PAY1_ADMISSION_REQUIRED','PAY1_ADMISSION_UNAVAILABLE','PAY1_TARGET_MISMATCH','PAY1_WINDOW_CLOSED','PAY1_ACTOR_NOT_ADMITTED','PAY1_REGISTRATION_UNAVAILABLE'])assert.equal(entry.accountEntryFailure(new Pay1AdmissionError(reason)),reason);
  });
+ await t.test('configuration logs only allowlisted setting names, including after tampering',async()=>{
+  const e=new Pay1AdmissionError('PAY1_CONFIGURATION_REQUIRED',['CLERK_SECRET_KEY','SENSITIVE_MARKER','DATABASE_URL']);
+  e.failedSettings=['SENSITIVE_MARKER','CLERK_SECRET_KEY'];logs=[];
+  await assert.rejects(entry.accountEntry(async()=>{throw e;}),x=>x===redirectError);assert.deepEqual(JSON.parse(logs[0]),{event:'ACCOUNT_ENTRY_DENIED',code:'PAY1_CONFIGURATION_REQUIRED',settings:['CLERK_SECRET_KEY']});assert.doesNotMatch(logs.join(''),/SENSITIVE_MARKER/);
+ });
  await t.test('actual Prisma schema/connection classes map without SQL, metadata or credentials',()=>{
   const missing=new Prisma.PrismaClientKnownRequestError('SENSITIVE_MARKER',{code:'P2022',clientVersion:'fixture',meta:{column:'private_column'}});
   assert.equal(entry.accountEntryFailure(missing),'ACCOUNT_SCHEMA_REQUIRED');

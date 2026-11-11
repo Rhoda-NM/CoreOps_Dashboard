@@ -70,6 +70,7 @@ test('PAY-1 registration exception is synthetic, scoped and never legal approval
   const renderToStaticMarkup=value=>{if(value==null)return '';if(typeof value==='string'||typeof value==='number')return String(value);if(Array.isArray(value))return value.map(renderToStaticMarkup).join(' ');return value.props?renderToStaticMarkup(value.props.children):'';};
   reset();let html=renderToStaticMarkup(await Recovery());assert.match(html,/Continue with your WorkflowConnect account/);assert.doesNotMatch(html,/LEGAL_ACCEPTANCE_REQUIRED/);
   reset();profile.id='user_Unlisted';html=renderToStaticMarkup(await Recovery());assert.match(html,/PAY1_ACTOR_NOT_ADMITTED/);assert.doesNotMatch(html,/synthetic@example.test|user_Unlisted/);
+  reset();process.env.COREOPS_ENVIRONMENT='SENSITIVE_MARKER';html=renderToStaticMarkup(await Recovery());assert.match(html,/Settings requiring correction/);assert.match(html,/COREOPS_ENVIRONMENT/);assert.doesNotMatch(html,/SENSITIVE_MARKER|sk_test_synthetic/);
   reset();profile.signedOut=true;await assert.rejects(Recovery(),error=>String(error.digest).startsWith('NEXT_REDIRECT'));
  });
  await t.test('production and ordinary non-PAY-1 registration retain existing legal gates',async()=>{

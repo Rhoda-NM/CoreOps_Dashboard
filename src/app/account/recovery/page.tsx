@@ -4,6 +4,7 @@ import { ShieldAlert } from "lucide-react";
 import { requireClerkIdentity } from "@/server/auth/clerk-identity";
 import { unstable_rethrow } from "next/navigation";
 import { accountEntryFailure, type AccountEntryFailure } from "@/server/auth/account-entry";
+import { pay1FailedSettings, type Pay1SettingName } from "@/server/preview/pay1-error";
 import { pay1Enabled } from "@/server/preview/pay1-config";
 import { prisma } from "@/server/db/prisma";
 import { getAuthConfiguration } from "@/config/auth";
@@ -34,6 +35,7 @@ export const dynamic = "force-dynamic";
 
 export default async function RecoveryPage() {
   let reason: AccountEntryFailure | "READY" = "READY";
+  let settings: Pay1SettingName[] = [];
   try {
     const profile = await requireClerkIdentity();
     const owner = await prisma.user.findFirst({ where: { email: { equals: profile.primaryEmailAddress!.emailAddress.trim(), mode: "insensitive" } }, select: { externalId: true } });
@@ -45,8 +47,9 @@ export default async function RecoveryPage() {
   } catch (error) {
     unstable_rethrow(error);
     reason = accountEntryFailure(error) ?? "PROVIDER_UNAVAILABLE";
+    settings = pay1FailedSettings(error);
   }
   const { title, message } = guidance[reason];
   const { supportEmail } = getAuthConfiguration();
-  return <main className="flex min-h-screen items-center justify-center bg-core-bg px-5 py-10 text-core-text"><section className="w-full max-w-xl space-y-5 rounded-2xl border border-core-border bg-core-card p-6 sm:p-8"><ShieldAlert aria-hidden="true" className="h-8 w-8 text-core-accent" /><p className="text-xs uppercase tracking-widest text-core-accent">WorkflowConnect account help</p><h1 className="text-2xl font-semibold">{title}</h1><p className="text-sm leading-7 text-core-text-secondary">{message}</p>{reason !== "READY" && <p className="text-xs text-core-muted">Access check: <code>{reason}</code></p>}<div className="flex flex-wrap gap-3"><Link href={reason === "READY" ? "/dashboard" : "/auth-help"} className="rounded-lg bg-core-primary px-4 py-2 text-sm text-white">{reason === "READY" ? "Return to workspaces" : "Get account help"}</Link><SignOutButton redirectUrl="/sign-in"><button type="button" className="rounded-lg border border-core-border px-4 py-2 text-sm">Sign out</button></SignOutButton><Link href="/auth-help" className="self-center text-sm text-core-accent underline">Recovery guidance</Link></div>{supportEmail && <a href={`mailto:${supportEmail}`} className="inline-block text-sm text-core-accent underline">Contact WorkflowConnect support</a>}<p className="text-xs leading-5 text-core-muted">Never share passwords, verification codes, session cookies, or recovery codes with support.</p><LegalLinks /></section></main>;
+  return <main className="flex min-h-screen items-center justify-center bg-core-bg px-5 py-10 text-core-text"><section className="w-full max-w-xl space-y-5 rounded-2xl border border-core-border bg-core-card p-6 sm:p-8"><ShieldAlert aria-hidden="true" className="h-8 w-8 text-core-accent" /><p className="text-xs uppercase tracking-widest text-core-accent">WorkflowConnect account help</p><h1 className="text-2xl font-semibold">{title}</h1><p className="text-sm leading-7 text-core-text-secondary">{message}</p>{reason !== "READY" && <p className="text-xs text-core-muted">Access check: <code>{reason}</code></p>}{settings.length > 0 && <div className="space-y-2"><p className="text-sm">Settings requiring correction (names only):</p><ul className="list-disc space-y-1 pl-5 text-xs">{settings.map(setting => <li key={setting}><code>{setting}</code></li>)}</ul></div>}<div className="flex flex-wrap gap-3"><Link href={reason === "READY" ? "/dashboard" : "/auth-help"} className="rounded-lg bg-core-primary px-4 py-2 text-sm text-white">{reason === "READY" ? "Return to workspaces" : "Get account help"}</Link><SignOutButton redirectUrl="/sign-in"><button type="button" className="rounded-lg border border-core-border px-4 py-2 text-sm">Sign out</button></SignOutButton><Link href="/auth-help" className="self-center text-sm text-core-accent underline">Recovery guidance</Link></div>{supportEmail && <a href={`mailto:${supportEmail}`} className="inline-block text-sm text-core-accent underline">Contact WorkflowConnect support</a>}<p className="text-xs leading-5 text-core-muted">Never share passwords, verification codes, session cookies, or recovery codes with support.</p><LegalLinks /></section></main>;
 }
