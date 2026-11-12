@@ -41,7 +41,8 @@
     "test:pay1-preview": "node tests/pay1-preview.test.cjs",
     "test:pay1-registration": "node tests/pay1-registration.test.cjs",
     "test:account-entry": "node tests/account-entry.test.cjs",
-    "test:auth-pages": "node tests/auth-pages.test.cjs"
+    "test:auth-pages": "node tests/auth-pages.test.cjs",
+    "test:platform-reverification": "node tests/platform-reverification.test.cjs"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
