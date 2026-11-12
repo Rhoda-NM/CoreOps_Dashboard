@@ -6,6 +6,7 @@ let registrationReady=true;
 const context=new AsyncLocalStorage(),load=Module._load;
 Module._load=function(name,parent,main){
  if(name==='server-only')return {};
+ if(name==='@clerk/nextjs/server')return {auth:async()=>({userId:null})};
  if(name==='next/headers')return {headers:async()=>new Headers(context.getStore()?.headers??{})};
  if(name==='next/navigation')return {usePathname:()=>context.getStore()?.pathname??null};
  if(name==='@/server/auth/clerk-configuration')return {isRegistrationReady:async()=>registrationReady};

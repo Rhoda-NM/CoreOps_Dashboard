@@ -2,6 +2,11 @@ import "server-only";
 import { Pay1AdmissionError, type Pay1SettingName } from "./pay1-error";
 
 export function pay1Enabled() { return process.env.COREOPS_PAY1_PREVIEW_ENABLED === "true"; }
+// Presentation only: do not require a database record or provider REST request
+// to display a public test form. Every authenticated mutation retains admission.
+export function pay1AuthenticationFormsEnabled() {
+  return pay1Enabled() && process.env.VERCEL === "1" && process.env.VERCEL_ENV === "preview" && !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.startsWith("pk_test_");
+}
 function parseUrl(value: string | undefined) { try { return new URL(value ?? "invalid:"); } catch { return undefined; } }
 function databaseName(database: URL | undefined) { try { return database && decodeURIComponent(database.pathname.slice(1)); } catch { return undefined; } }
 function evaluate(env: NodeJS.ProcessEnv) {

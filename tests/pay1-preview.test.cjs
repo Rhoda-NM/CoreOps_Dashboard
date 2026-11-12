@@ -35,6 +35,11 @@ test('PAY-1 scoped preview admission, no database or provider calls',async t=>{
  await t.test('target rejects production, custom environments, missing runtime identifiers and local spoofing',()=>{
   for(const patch of [{VERCEL_ENV:'production'},{COREOPS_ENVIRONMENT:'production'},{VERCEL_TARGET_ENV:'staging'},{VERCEL:''},{VERCEL_PROJECT_ID:''},{VERCEL_DEPLOYMENT_ID:''},{DATABASE_URL:'postgresql://u:p@localhost/preview?sslmode=require'},{DATABASE_URL:'postgresql://u:p@db.example.test/preview'},{COREOPS_APP_ORIGIN:'http://pay1.example.test'},{COREOPS_ROUTING_MODE:'subdomain'},{CLERK_SECRET_KEY:'sk_live_SYNTHETIC'},{PAYSTACK_LIVE_SECRET_KEY:'sk_live_SYNTHETIC'}]){reset();Object.assign(process.env,patch);assert.throws(config.pay1Target);}
  });
+ await t.test('test form presentation is independent of admission while protected target checks remain closed',()=>{
+  reset();delete process.env.COREOPS_ENVIRONMENT;assert.equal(config.pay1AuthenticationFormsEnabled(),true);assert.throws(config.pay1Target);
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY='pk_live_SYNTHETIC';assert.equal(config.pay1AuthenticationFormsEnabled(),false);
+  reset();process.env.VERCEL_ENV='production';assert.equal(config.pay1AuthenticationFormsEnabled(),false);
+ });
  await t.test('configuration reports individual failed names without values',()=>{
   reset();assert.deepEqual(config.pay1ConfigurationIssues(),[]);
   for(const key of ['VERCEL','VERCEL_ENV','COREOPS_ENVIRONMENT','VERCEL_PROJECT_ID','VERCEL_DEPLOYMENT_ID','COREOPS_PAY1_ADMISSION_ID','DATABASE_URL','COREOPS_APP_ORIGIN','COREOPS_ROUTING_MODE','COREOPS_MARKETING_ORIGIN','COREOPS_PREVIEW_HOSTS','NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY','CLERK_SECRET_KEY']){

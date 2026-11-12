@@ -40,7 +40,8 @@
     "test:legal-evidence": "node --env-file=.env scripts/with-commercial-rehearsal.cjs node tests/legal-evidence.integration.cjs",
     "test:pay1-preview": "node tests/pay1-preview.test.cjs",
     "test:pay1-registration": "node tests/pay1-registration.test.cjs",
-    "test:account-entry": "node tests/account-entry.test.cjs"
+    "test:account-entry": "node tests/account-entry.test.cjs",
+    "test:auth-pages": "node tests/auth-pages.test.cjs"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
