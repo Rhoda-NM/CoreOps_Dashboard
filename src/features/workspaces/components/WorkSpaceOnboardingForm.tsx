@@ -5,7 +5,7 @@ import { createWorkspaceAction } from "@/features/workspaces/actions/create-work
 import { checkWorkspaceSlugAction } from "@/features/workspaces/actions/check-workspace-slug";
 import { selectedWorkspaceSlugMessage, suggestWorkspaceSlug } from "@/lib/routing/workspace-slug";
 
-export function WorkspaceOnboardingForm({ defaultName = "", addressDomain = "workflowconnect.io", countryOptions, requestKey }: { defaultName?: string; addressDomain?: string; countryOptions: { code: string; name: string }[]; requestKey: string }) {
+export function WorkspaceOnboardingForm({ defaultName = "", addressDomain = "workflowconnect.io", addressPrefix, countryOptions, requestKey }: { defaultName?: string; addressDomain?: string; addressPrefix?: string; countryOptions: { code: string; name: string }[]; requestKey: string }) {
   const [name, setName] = useState(defaultName);
   const [slug, setSlug] = useState(() => suggestWorkspaceSlug(defaultName));
   const [edited, setEdited] = useState(false);
@@ -34,10 +34,10 @@ export function WorkspaceOnboardingForm({ defaultName = "", addressDomain = "wor
       <label className="block">Business use case<textarea name="useCase" required minLength={3} maxLength={1000} className="w-full rounded-xl border p-3"/></label>
       <p>Do not include client records, sensitive information, passwords or payment details.</p>
       <label className="block"><input type="checkbox" name="attested" required/> I am authorized to apply for this business and declare its country of operation accurately.</label>
-      <div className="space-y-2"><label htmlFor="name" className="text-sm font-medium text-core-text">Business name</label><input id="name" name="name" required minLength={2} maxLength={120} value={name} onChange={event => updateName(event.target.value)} placeholder="Stravect Systems" className={inputClass}/></div>
+      <div className="space-y-2"><label htmlFor="name" className="text-sm font-medium text-core-text">Business name</label><input id="name" name="name" required minLength={2} maxLength={120} value={name} onChange={event => updateName(event.target.value)} placeholder="Your business name" className={inputClass}/></div>
       <div className="space-y-3"><label htmlFor="slug" className="text-sm font-medium text-core-text">Workspace address</label><input id="slug" name="slug" required minLength={3} maxLength={63} value={slug} onChange={event => { setEdited(true); setSlug(event.target.value); }} autoCapitalize="none" autoCorrect="off" spellCheck={false} aria-invalid={!!invalid} aria-describedby="slug-help slug-preview slug-feedback" className={inputClass}/>
-        <p id="slug-preview" className="break-all rounded-lg border border-core-border bg-core-surface p-3 text-base text-core-accent">{slug || "your-business"}.{addressDomain}</p>
-        <p id="slug-help" className="text-sm leading-6 text-core-text-secondary">3–63 lowercase letters, numbers or hyphens. This address stays the same when you rename your business.</p>
+        <p id="slug-preview" className="break-all rounded-lg border border-core-border bg-core-surface p-3 text-base text-core-accent">{addressPrefix ? `${addressPrefix}${slug || "your-business"}` : `${slug || "your-business"}.${addressDomain}`}</p>
+        <p id="slug-help" className="text-sm leading-6 text-core-text-secondary">Choose the short name in your workspace link: 3–63 lowercase letters, numbers or hyphens. This address stays the same when you rename your business.</p>
         <div className="flex flex-wrap gap-3"><button type="button" disabled={!!invalid || checking || isPending} onClick={checkAddress} className="min-h-11 rounded-lg border border-core-border px-4 text-sm text-core-text disabled:opacity-50">{checking ? "Checking…" : "Check availability"}</button>{edited && <button type="button" onClick={() => { setEdited(false); setSlug(suggestWorkspaceSlug(name)); }} className="min-h-11 px-2 text-sm text-core-accent underline">Use suggested address</button>}</div>
         <p id="slug-feedback" role="status" aria-live="polite" className={`text-sm leading-6 ${invalid || (availability?.slug === slug && availability.status !== "available") ? "text-red-300" : "text-core-accent"}`}>{invalid ?? (availability?.slug === slug ? availability.message : "Availability is confirmed when you create your workspace.")}</p>
       </div>

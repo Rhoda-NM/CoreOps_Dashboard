@@ -29,13 +29,11 @@ export default async function OnboardingPage() {
 
   const names = new Intl.DisplayNames(["en"], { type: "region" });
   const countryOptions = countryCodes.map(code => ({ code, name: names.of(code) ?? code }));
-  const defaultWorkspaceName = user.name
-    ? `${user.name}'s Workspace`
-    : "My Workspace";
+  const defaultWorkspaceName = "";
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#0E2425] px-6 py-12">
-      <WorkspaceOnboardingForm requestKey={randomUUID()} countryOptions={countryOptions} defaultName={defaultWorkspaceName} addressDomain={policy.tenantRootDomain ?? "workflowconnect.io"} />
+      <WorkspaceOnboardingForm requestKey={randomUUID()} countryOptions={countryOptions} defaultName={defaultWorkspaceName} addressDomain={policy.tenantRootDomain ?? "workflowconnect.io"} addressPrefix={policy.mode === "path" ? `${policy.appOrigin}/w/` : undefined} />
     </main>
   );
 }

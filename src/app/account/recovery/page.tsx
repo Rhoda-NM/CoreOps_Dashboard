@@ -5,6 +5,7 @@ import { requireClerkIdentity } from "@/server/auth/clerk-identity";
 import { unstable_rethrow } from "next/navigation";
 import { accountEntryFailure, type AccountEntryFailure } from "@/server/auth/account-entry";
 import { pay1FailedSettings, type Pay1SettingName } from "@/server/preview/pay1-error";
+import { stagingRequested } from "@/server/staging/config";
 import { pay1Enabled } from "@/server/preview/pay1-config";
 import { prisma } from "@/server/db/prisma";
 import { getAuthConfiguration } from "@/config/auth";
@@ -12,6 +13,8 @@ import { isRegistrationReady } from "@/server/auth/clerk-configuration";
 import { LegalLinks } from "@/components/auth/LegalLinks";
 
 const guidance: Record<AccountEntryFailure | "READY", { title: string; message: string }> = {
+  STAGING_CONFIGURATION_REQUIRED: { title: "Staging configuration needs attention", message: "The stable staging project, branch, origin, database or Clerk test instance does not match its reviewed environment setup. The operator must run the staging readiness check. A deployment-specific PAY-1 admission is not needed in staging." },
+  STAGING_REGISTRATION_UNAVAILABLE: { title: "Staging registration needs attention", message: "The operator must verify Clerk test configuration availability and disabled self-service account deletion. No user allowlist or production legal approval is required for synthetic staging registration." },
   IDENTITY_CONFLICT: { title: "Let’s recover your WorkflowConnect access safely", message: "We couldn’t safely connect this sign-in to a WorkflowConnect profile. Try your original sign-in method. If you still need help, contact support for a verified review. We never merge accounts or transfer workspace access automatically." },
   VERIFICATION_REQUIRED: { title: "Verify your email to continue", message: "Use Clerk’s verification prompts to verify your primary email address. This protects your account and any workspace invitations." },
   ACCOUNT_UNAVAILABLE: { title: "This sign-in is no longer available", message: "Sign out and sign in again. If the problem continues, contact support. Your local workspace records have not been deleted or transferred." },
@@ -41,7 +44,8 @@ export default async function RecoveryPage() {
     const owner = await prisma.user.findFirst({ where: { email: { equals: profile.primaryEmailAddress!.emailAddress.trim(), mode: "insensitive" } }, select: { externalId: true } });
     if (owner && owner.externalId !== profile.id) reason = "IDENTITY_CONFLICT";
     else if (!owner && getAuthConfiguration().requireLegal) {
-      if (pay1Enabled()) { if (!await isRegistrationReady()) reason = "PAY1_REGISTRATION_UNAVAILABLE"; }
+      if (stagingRequested()) { if (!await isRegistrationReady()) reason = "STAGING_REGISTRATION_UNAVAILABLE"; }
+      else if (pay1Enabled()) { if (!await isRegistrationReady()) reason = "PAY1_REGISTRATION_UNAVAILABLE"; }
       else if (!profile.legalAcceptedAt || !await isRegistrationReady()) reason = "LEGAL_ACCEPTANCE_REQUIRED";
     }
   } catch (error) {

@@ -38,7 +38,10 @@ export default async function proxy(request: NextRequest, event: NextFetchEvent)
     if (policy.mode === "subdomain" && plan.host.kind !== "marketing") response.headers.set("X-Robots-Tag", "noindex, nofollow");
     return response;
   };
-  if (plan.infrastructure) return routingResponse();
+  // Public, nonpersonal brochure reads do not require an identity-provider
+  // handshake. POST/actions still run Clerk and their own server authorization.
+  const brochureRead = ["GET", "HEAD"].includes(request.method) && plan.public && !plan.workspaceSlug && !request.headers.has("next-action") && ["/", "/features", "/pricing", "/demo", "/terms", "/privacy", "/auth-help"].includes(request.nextUrl.pathname);
+  if (plan.infrastructure || brochureRead) return routingResponse();
   // Validate routing before Clerk can initiate a development handshake.
   return clerkMiddleware(async (auth) => {
   if (!plan.public) {

@@ -22,7 +22,7 @@ export async function getCurrentWorkspaceMembership() {
     where: { userId: user.id, status: "ACTIVE", workspace: { slug } },
     include: { user: true, workspace: true },
   });
-  if (!member) throw new AccessError("FORBIDDEN");
+  if (!member || member.user.platformSuspended) throw new AccessError("FORBIDDEN");
   return member;
 }
 export async function getCurrentWorkspace() { return (await getCurrentWorkspaceMembership()).workspace; }

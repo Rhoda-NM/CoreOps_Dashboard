@@ -1,3 +1,4 @@
+import { stagingRequested } from "@/server/staging/config";
 import { pay1AuthenticationFormsEnabled } from "@/server/preview/pay1-config";
 import { authAppearance } from "@/components/auth/appearance";
 import { auth } from "@clerk/nextjs/server";
@@ -24,7 +25,7 @@ export default async function SignUpPage({ searchParams }: { searchParams: Promi
   // Viewing a test registration form must not depend on admission/provisioning.
   const ready = testRegistration || await isRegistrationReady();
   return <AuthShell registering>{ready ? <>
-    {testRegistration && <p role="note" className="mb-4 rounded-xl border border-brand-line p-4 text-sm leading-6 text-brand-muted">Payment testing only. Create a synthetic test account, not a customer account. Registration does not approve the draft legal documents or activate a subscription. Your Clerk user ID must be included in this preview’s test admission before you can continue to business onboarding.</p>}
+    {testRegistration && <p role="note" className="mb-4 rounded-xl border border-brand-line p-4 text-sm leading-6 text-brand-muted">{stagingRequested() ? "Staging testing only." : "Payment testing only."} Create a synthetic test account, not a customer account. Registration does not approve the draft legal documents or activate a subscription. {stagingRequested() ? "After verified sign-in, agree to the synthetic testing conditions and set up your business." : "Your Clerk user ID must be included in this preview’s test admission before you can continue to business onboarding."}</p>}
     <SignUp path="/sign-up" routing="path" forceRedirectUrl={destination} signInForceRedirectUrl={destination} signInUrl={centralUrl(policy, `/sign-in?${new URLSearchParams({ returnTo: intent })}`)} appearance={{ ...authAppearance, options: { termsPageUrl: marketingUrl(policy, "/terms"), privacyPageUrl: marketingUrl(policy, "/privacy") } }} />
     {!config.legalReady && <p className="mt-4 text-sm leading-6 text-brand-muted">The Terms of Service and Privacy Policy below are drafts awaiting approval. Draft documents are not presented for mandatory acceptance.</p>}
     <p className="mt-4 text-sm leading-6 text-brand-muted">Account creation does not subscribe you to marketing communications.</p>

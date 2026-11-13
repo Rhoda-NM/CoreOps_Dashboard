@@ -1,4 +1,5 @@
 import "server-only";
+import { stagingRequested } from "../staging/config";
 import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { authenticationDestination } from "../routing/auth-navigation";
@@ -24,7 +25,7 @@ export async function requireClerkIdentity({ allowUnverifiedEmail = false }: { a
   }
   if (!profile || profile.id !== userId || profile.banned || profile.locked) throw new IdentityError("ACCOUNT_UNAVAILABLE");
   if (!allowUnverifiedEmail && (!profile.primaryEmailAddress || profile.primaryEmailAddress.verification?.status !== "verified")) throw new IdentityError("VERIFICATION_REQUIRED");
-  if (process.env.COREOPS_PAY1_PREVIEW_ENABLED === "true") {
+  if (stagingRequested() || process.env.COREOPS_PAY1_PREVIEW_ENABLED === "true") {
     const { requirePay1Actor } = await import("../preview/pay1-admission");
     await requirePay1Actor(profile.id);
   }

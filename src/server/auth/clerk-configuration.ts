@@ -1,4 +1,5 @@
 import "server-only";
+import { stagingRequested } from "../staging/config";
 import { pay1Enabled } from "../preview/pay1-config";
 import { getAuthConfiguration } from "@/config/auth";
 import { registrationRequirements, type ClerkPublicConfiguration } from "@/lib/auth/registration-readiness";
@@ -17,6 +18,9 @@ export async function readClerkConfiguration(): Promise<ClerkPublicConfiguration
 }
 
 export async function isRegistrationReady() {
+  if (stagingRequested()) {
+    try { const { requireStagingEnvironment } = await import("../staging/environment"); await requireStagingEnvironment(); const remote = await readClerkConfiguration(); return remote?.user_settings?.actions?.delete_self === false; } catch { return false; }
+  }
   if (pay1Enabled()) {
     // Synthetic preview registration is not approval of public customer documents.
     // Before a Clerk ID exists, only the target/window can be checked; application

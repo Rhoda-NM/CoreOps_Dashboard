@@ -12,17 +12,19 @@ datasource db {
 }
 
 model User {
-  legalEvidenceSubject LegalEvidenceSubject?
-  marketApplications   MarketApplication[]
-  marketSubmissions    MarketSubmission[]
-  marketDecisions      MarketDecision[]
-  notificationSources  NotificationSource[]
-  notifications        NotificationOutbox[]
-  id                   String                @id @default(cuid())
-  externalId           String?               @unique
-  name                 String?
-  email                String                @unique
-  imageUrl             String?
+  platformSuspended      Boolean                 @default(false)
+  stagingAcknowledgments StagingAcknowledgment[]
+  legalEvidenceSubject   LegalEvidenceSubject?
+  marketApplications     MarketApplication[]
+  marketSubmissions      MarketSubmission[]
+  marketDecisions        MarketDecision[]
+  notificationSources    NotificationSource[]
+  notifications          NotificationOutbox[]
+  id                     String                  @id @default(cuid())
+  externalId             String?                 @unique
+  name                   String?
+  email                  String                  @unique
+  imageUrl               String?
 
   platformAdmin        PlatformAdmin?
   subscriptionRequests SubscriptionRequest[]      @relation("RequestSubmitter")
@@ -387,6 +389,7 @@ enum PaymentSubmissionStatus {
 }
 
 enum TaxTreatment {
+  NON_VAT_REGISTERED
   UNCONFIRMED
   INCLUSIVE
   EXCLUSIVE
@@ -444,25 +447,29 @@ model PlatformAuditEvent {
 }
 
 model SubscriptionPlanOffer {
-  id                  String                @id @default(cuid())
-  plan                SubscriptionPlan
-  interval            BillingInterval
-  version             Int
-  name                String
-  amount              Decimal?              @db.Decimal(18, 2)
-  currency            String                @default("KES")
-  memberLimit         Int?
-  projectLimit        Int?
-  invitationsEnabled  Boolean               @default(false)
-  features            Json
-  taxTreatment        TaxTreatment          @default(UNCONFIRMED)
-  published           Boolean               @default(false)
-  businessApprovedAt  DateTime?
-  businessApprovalRef String?
-  approvedById        String?
-  approvedBy          PlatformAdmin?        @relation(fields: [approvedById], references: [id], onDelete: Restrict)
-  requests            SubscriptionRequest[]
-  createdAt           DateTime              @default(now())
+  pricingRelease       String?
+  commercialPath       String                @default("MANUAL")
+  stagingEnvironmentId String?
+  stagingEnvironment   StagingEnvironment?   @relation(fields: [stagingEnvironmentId], references: [id], onDelete: Restrict)
+  id                   String                @id @default(cuid())
+  plan                 SubscriptionPlan
+  interval             BillingInterval
+  version              Int
+  name                 String
+  amount               Decimal?              @db.Decimal(18, 2)
+  currency             String                @default("KES")
+  memberLimit          Int?
+  projectLimit         Int?
+  invitationsEnabled   Boolean               @default(false)
+  features             Json
+  taxTreatment         TaxTreatment          @default(UNCONFIRMED)
+  published            Boolean               @default(false)
+  businessApprovedAt   DateTime?
+  businessApprovalRef  String?
+  approvedById         String?
+  approvedBy           PlatformAdmin?        @relation(fields: [approvedById], references: [id], onDelete: Restrict)
+  requests             SubscriptionRequest[]
+  createdAt            DateTime              @default(now())
 
   @@unique([plan, interval, version])
 }
@@ -487,6 +494,9 @@ model PaymentReceivingAccount {
 }
 
 model SubscriptionRequest {
+  commercialPath          String                   @default("MANUAL")
+  stagingEnvironmentId    String?
+  stagingEnvironment      StagingEnvironment?      @relation(fields: [stagingEnvironmentId], references: [id], onDelete: Restrict)
   notificationSources     NotificationSource[]
   id                      String                   @id @default(cuid())
   workspaceId             String
@@ -571,6 +581,7 @@ model SubscriptionPayment {
 }
 
 model SubscriptionPaymentReceipt {
+  activatedPeriod      SubscriptionPeriod?          @relation("PeriodReceipt")
   notificationSources  NotificationSource[]
   id                   String                       @id @default(cuid())
   submissionId         String                       @unique
@@ -613,17 +624,20 @@ model SubscriptionPaymentReversal {
 }
 
 model SubscriptionPeriod {
+  activationSource    String                      @default("ADMIN")
+  verifiedReceiptId   String?                     @unique
+  verifiedReceipt     SubscriptionPaymentReceipt? @relation("PeriodReceipt", fields: [verifiedReceiptId], references: [id], onDelete: Restrict)
   notificationSources NotificationSource[]
   exports             WorkspaceExportRequest[]
-  recoveryEpisodes    WorkspaceRecoveryRequest[] @relation("RecoveryEpisode")
-  recoveryActivations WorkspaceRecoveryRequest[] @relation("RecoveryActivation")
-  id                  String                     @id @default(cuid())
+  recoveryEpisodes    WorkspaceRecoveryRequest[]  @relation("RecoveryEpisode")
+  recoveryActivations WorkspaceRecoveryRequest[]  @relation("RecoveryActivation")
+  id                  String                      @id @default(cuid())
   workspaceId         String
-  workspace           Workspace                  @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  workspace           Workspace                   @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
   subscriptionId      String
-  subscription        Subscription               @relation(fields: [subscriptionId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
-  sourceRequestId     String                     @unique
-  sourceRequest       SubscriptionRequest        @relation(fields: [sourceRequestId, workspaceId, subscriptionId], references: [id, workspaceId, subscriptionId], onDelete: Restrict)
+  subscription        Subscription                @relation(fields: [subscriptionId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  sourceRequestId     String                      @unique
+  sourceRequest       SubscriptionRequest         @relation(fields: [sourceRequestId, workspaceId, subscriptionId], references: [id, workspaceId, subscriptionId], onDelete: Restrict)
   plan                SubscriptionPlan
   interval            BillingInterval
   startsAt            DateTime
@@ -634,12 +648,12 @@ model SubscriptionPeriod {
   projectLimit        Int?
   invitationsEnabled  Boolean
   features            Json
-  agreedAmount        Decimal                    @db.Decimal(18, 2)
+  agreedAmount        Decimal                     @db.Decimal(18, 2)
   currency            String
-  activatedById       String
-  activatedBy         PlatformAdmin              @relation(fields: [activatedById], references: [id], onDelete: Restrict)
+  activatedById       String?
+  activatedBy         PlatformAdmin?              @relation(fields: [activatedById], references: [id], onDelete: Restrict)
   revokedAt           DateTime?
-  createdAt           DateTime                   @default(now())
+  createdAt           DateTime                    @default(now())
   lifecycle           WorkspaceLifecycle?
   lifecycleEvents     WorkspaceLifecycleEvent[]
 
@@ -833,6 +847,8 @@ enum PaystackMode {
 }
 
 enum PaystackAttemptStatus {
+  FAILED
+  ABANDONED
   CREATED
   INITIALIZED
   CONFIRMED
@@ -846,6 +862,7 @@ enum PaymentEventStatus {
 }
 
 model TaxConfiguration {
+  synthetic             Boolean               @default(false)
   id                    String                @id @default(cuid())
   version               Int                   @unique
   registrationStatus    VatRegistrationStatus
@@ -1524,4 +1541,34 @@ model Pay1PreviewAdmission {
   revokedAt         DateTime?
   createdAt         DateTime            @default(now())
   applications      MarketApplication[]
+}
+
+// Persistent synthetic environment identity, independent of individual deployments.
+model StagingEnvironment {
+  id                String                  @id
+  projectId         String
+  origin            String
+  databaseHost      String
+  databaseName      String
+  clerkHost         String
+  syntheticOnly     Boolean                 @default(true)
+  active            Boolean                 @default(true)
+  approvalReference String
+  createdAt         DateTime                @default(now())
+  offers            SubscriptionPlanOffer[]
+  requests          SubscriptionRequest[]
+  acknowledgments   StagingAcknowledgment[]
+}
+
+model StagingAcknowledgment {
+  id                   String             @id @default(cuid())
+  userId               String
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  stagingEnvironmentId String
+  environment          StagingEnvironment @relation(fields: [stagingEnvironmentId], references: [id], onDelete: Restrict)
+  content              String
+  contentHash          String
+  acceptedAt           DateTime           @default(now())
+
+  @@unique([userId, stagingEnvironmentId, contentHash], map: "StagingAcknowledgment_userId_stagingEnvironmentId_contentHash_k")
 }

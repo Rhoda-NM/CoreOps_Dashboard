@@ -24,8 +24,8 @@ test('landing stays concise and links to truthful dedicated features and pricing
  const featureHtml=renderToStaticMarkup(createElement(Features));
  assert.match(featureHtml,/Future client portal/);assert.match(featureHtml,/Post-MVP concept/);assert.match(featureHtml,/Not available in the current product/);
  const pricingHtml=renderToStaticMarkup(await Pricing());
- assert.match(pricingHtml,/KES 1,500/);assert.doesNotMatch(pricingHtml,/coming soon|being finalized|temporarily unavailable/);
- assert.doesNotMatch(html,/KES 1,500|KES 1500|KES 2,900|KES 2900|KES 7,900/);
+ assert.match(pricingHtml,/KES 100/);assert.doesNotMatch(pricingHtml,/coming soon|being finalized|temporarily unavailable/);
+ assert.doesNotMatch(html,/KES 100|KES 100|KES 300|KES 300|KES 1,000/);
  for(const href of ['/features','/pricing'])assert.ok(html.includes(`href="${href}"`));
  for(const anchor of ['how-it-works','main-content'])assert.ok(html.includes(`id="${anchor}"`));
  assert.ok(html.includes('href="/sign-in"'));assert.match(html,/Get access/);assert.match(html,/Terms of Service \(draft\)/);
@@ -34,7 +34,7 @@ test('pricing prioritizes published amounts and offers monthly and annual contro
  const {Prisma}=require('@prisma/client');
  const original=content;
  try{
-  content={...content,offers:['MONTHLY','ANNUAL'].map((interval,i)=>({id:`published-${i}`,plan:'SOLO',interval,name:'Solo',amount:new Prisma.Decimal(i?'23456':'2345.67'),currency:'KES',memberLimit:1,invitationsEnabled:false,taxTreatment:'EXCLUSIVE',version:2}))};
+  content={...content,offers:['MONTHLY','ANNUAL'].map((interval,i)=>({id:`published-${i}`,plan:'SOLO',interval,name:'Solo',amount:new Prisma.Decimal(i?'23456':'2345.67'),currency:'KES',memberLimit:1,invitationsEnabled:false,taxTreatment:'EXCLUSIVE',version:2,pricingRelease:'REVIEWED-FUTURE-TEST-VERSION'}))};
   const html=renderToStaticMarkup(await Pricing());assert.match(html,/KES 2,345.67/);assert.match(html,/Monthly/);assert.match(html,/Annual/);assert.match(html,/Payable:/);assert.doesNotMatch(html,/href="\/sign-up"/);
  }finally{content=original;}
 });
@@ -62,7 +62,7 @@ test('catalog outage retains approved display pricing without offering checkout 
  try{
   content={...content,catalogAvailable:false};
   const html=renderToStaticMarkup(await Pricing());
-  assert.match(html,/KES 1,500/);
+  assert.match(html,/KES 100/);
   assert.match(html,/Your quotation confirms the final payable amount/);
   assert.doesNotMatch(html,/coming soon|being finalized|temporarily unavailable/);
   assert.doesNotMatch(html,/No VAT is currently charged|Payable:|href="\/sign-up"/);

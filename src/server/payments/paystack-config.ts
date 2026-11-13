@@ -1,4 +1,5 @@
 import "server-only";
+import { stagingRequested, stagingTarget } from "../staging/config";
 import { runtimeRoutingPolicy } from "../routing/config";
 import { createHash } from "node:crypto";
 import { CommercialError } from "../commercial/policy";
@@ -6,7 +7,8 @@ import { pay1Target, pay1Enabled } from "../preview/pay1-config";
 export type GatewayMode = "test" | "live";
 export function paystackConfig(mode: GatewayMode, initialize = false) {
   if (mode !== "test" && mode !== "live") throw new CommercialError("Invalid payment environment.");
-  if (pay1Enabled() || process.env.VERCEL_ENV === "preview") { pay1Target(); if (mode !== "test") throw new CommercialError("Preview accepts Test Mode only."); }
+  if (stagingRequested()) { stagingTarget(); if (mode !== "test") throw new CommercialError("Staging accepts Test Mode only."); }
+  else if (pay1Enabled() || process.env.VERCEL_ENV === "preview") { pay1Target(); if (mode !== "test") throw new CommercialError("Preview accepts Test Mode only."); }
   const prefix = `PAYSTACK_${mode.toUpperCase()}_`;
   const secret = process.env[`${prefix}SECRET_KEY`] ?? "";
   const merchantId = process.env[`${prefix}MERCHANT_ID`] ?? "";

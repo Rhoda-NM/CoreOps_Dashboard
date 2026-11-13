@@ -20,7 +20,7 @@ export async function workspaceMutation<T>(permission: Permission | null, operat
   return prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM "Workspace" WHERE id = ${context.workspaceId} FOR UPDATE`;
     const member = await tx.workspaceMember.findFirst({ where: { id: context.id, userId: context.userId, workspaceId: context.workspaceId, status: "ACTIVE" }, include: { user: true, workspace: true } });
-    if (!member || (permission && !can(member.role, permission))) throw new AccessError("FORBIDDEN");
+    if (!member || member.user.platformSuspended || (permission && !can(member.role, permission))) throw new AccessError("FORBIDDEN");
     await requireCommercialAccess(member.workspaceId, true, tx, permission ? commercialFeature(permission) : "tasks");
     return operation(tx, member);
   });

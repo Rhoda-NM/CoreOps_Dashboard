@@ -40,8 +40,8 @@ export async function createInitialWorkspace(name: unknown, selectedSlug?: unkno
       // transaction, so retrying only workspace.create inside it is unsafe.
       return await prisma.$transaction(async tx => {
         await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${user.id} FOR UPDATE`;
-        const identity = await tx.user.findUniqueOrThrow({ where: { id: user.id }, select: { externalId: true, email: true } });
-        if (identity.externalId !== user.externalId || identity.email !== user.email) throw new AccessError("FORBIDDEN");
+        const identity = await tx.user.findUniqueOrThrow({ where: { id: user.id }, select: { externalId: true, email: true, platformSuspended: true } });
+        if (identity.platformSuspended || identity.externalId !== user.externalId || identity.email !== user.email) throw new AccessError("FORBIDDEN");
         if (!applicationId) throw new AccessError("FORBIDDEN");
         await tx.$queryRaw`SELECT id FROM "MarketApplication" WHERE id=${applicationId} FOR UPDATE`;
         const application = await requireApplicationEligibility(tx, applicationId);

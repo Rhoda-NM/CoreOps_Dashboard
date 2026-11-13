@@ -1,0 +1,22 @@
+{
+  "kind": "PAY1_PREVIEW_INITIAL_SUPER_ADMIN",
+  "approved": false,
+  "clerkUserId": "user_3LykI0tFI8Me3PRkkxOuLTUo5M2",
+  "teamId": "",
+  "projectId": "",
+  "deploymentId": "",
+  "gitSha": "",
+  "origin": "",
+  "admissionId": "",
+  "databaseHost": "",
+  "databaseName": "",
+  "clerkHost": "",
+  "validFrom": "",
+  "validUntil": "",
+  "approvalReference": "",
+  "operatorReference": "",
+  "reviewerReference": "",
+  "nonProductionEvidenceReference": "",
+  "backupReference": "",
+  "syntheticIdentityEvidenceReference": ""
+}

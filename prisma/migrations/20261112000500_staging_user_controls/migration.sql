@@ -1,0 +1,1 @@
+ALTER TABLE "User" ADD COLUMN "platformSuspended" BOOLEAN NOT NULL DEFAULT false;

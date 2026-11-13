@@ -1,9 +1,10 @@
+import { stagingRequested } from "@/server/staging/config";
 import { processPaystackWebhook } from "@/server/payments/paystack";
 import { CommercialError } from "@/server/commercial/policy";
 export const runtime = "nodejs";
 export async function POST(request: Request, context: { params: Promise<{ mode: string }> }) {
   const { mode } = await context.params;
-  if (mode !== "test" && mode !== "live") return new Response(null, { status: 404 });
+  if ((stagingRequested() && mode !== "test") || (mode !== "test" && mode !== "live")) return new Response(null, { status: 404 });
   if (Number(request.headers.get("content-length")) > 262144) return new Response(null, { status: 413 });
   const chunks: Uint8Array[] = []; let size = 0;
   const reader = request.body?.getReader();

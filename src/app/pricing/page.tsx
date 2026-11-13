@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Pricing", description: "Monthly and annual plans for freelancers, small teams, and growing service businesses.", ...(canonicalOrigin() ? { alternates: { canonical: "/pricing" } } : {}) };
 const questions = [
   ["What counts as a member?", "Everyone with a workspace membership, including the owner. Pending invitations reserve seats; suspended members retain their seat."],
-  ["How do I get started?", "Sign in or create your account, set up your workspace, and choose a plan. Your subscription request is reviewed before payment and activation."],
+  ["How do I get started?", "Sign in or create your account, set up your workspace, and choose a plan. Standard plans use a server-priced quotation and independent payment verification. Negotiated subscriptions may require review."],
   ["How do renewals work?", "Renewals are manual. You can request your next monthly or annual period before the current one ends."],
   ["Can I add my team on Solo?", "Solo is for one owner. Choose Starter or Business for team invitations. A plan change takes effect only after review and activation."],
 ];

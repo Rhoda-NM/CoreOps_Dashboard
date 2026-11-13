@@ -17,7 +17,7 @@ export function Pricing({ content }: { content: Content }) {
     ...plan,
     features: [...plan.features],
     prices: (["MONTHLY", "ANNUAL"] as const).map(interval => {
-      const offer = content.offers.filter(o => o.plan === plan.id && o.interval === interval).sort((a,b) => b.version - a.version)[0];
+      const offer = content.offers.filter(o => o.pricingRelease && o.plan === plan.id && o.interval === interval).sort((a,b) => b.version - a.version)[0];
       if (offer) return { interval, amount: offer.amount?.toFixed(2) ?? null, currency: offer.currency, payable: offer.amount ? calculateTax(offer.amount, offer.taxTreatment, content.tax).payable.toFixed(2) : null, taxTreatment: offer.taxTreatment };
       return { interval, amount: plan.id === "ENTERPRISE" ? null : publicPricing[plan.id][interval], currency: "KES", payable: null, taxTreatment: null };
     }),

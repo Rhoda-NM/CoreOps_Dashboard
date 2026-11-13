@@ -1,5 +1,6 @@
 // src/app/layout.tsx
 
+import { stagingRequested } from "@/server/staging/config";
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { brand } from "@/config/brand";
@@ -32,7 +33,7 @@ export default async function RootLayout({
   const { policy } = await hostMetadata();
   return (
     <html lang="en">
-      <body><ClerkProvider allowedRedirectOrigins={[policy.appOrigin]} telemetry={false} supportEmail={getAuthConfiguration().supportEmail} appearance={{ variables: { colorPrimary: "#147D70", colorBackground: "#173434", colorForeground: "#F4F8F5", colorInput: "#102C2C", colorInputForeground: "#F4F8F5", colorMutedForeground: "#B1C7C0", colorBorder: "#345550", colorPrimaryForeground: "#FFFFFF", borderRadius: "0.75rem", fontFamily: "Inter, system-ui, sans-serif" }, options: { helpPageUrl: marketingUrl(policy, "/auth-help"), termsPageUrl: marketingUrl(policy, "/terms"), privacyPageUrl: marketingUrl(policy, "/privacy") } }} afterSignOutUrl={centralUrl(policy, "/sign-in")} signInUrl={centralUrl(policy, "/sign-in")} signUpUrl={centralUrl(policy, "/sign-up")} signInFallbackRedirectUrl={centralUrl(policy, "/dashboard")} signUpFallbackRedirectUrl={centralUrl(policy, "/onboarding")}><NavigationProvider policy={policy}>{children}</NavigationProvider></ClerkProvider></body>
+      <body><ClerkProvider allowedRedirectOrigins={[policy.appOrigin]} telemetry={false} supportEmail={getAuthConfiguration().supportEmail} appearance={{ variables: { colorPrimary: "#147D70", colorBackground: "#173434", colorForeground: "#F4F8F5", colorInput: "#102C2C", colorInputForeground: "#F4F8F5", colorMutedForeground: "#B1C7C0", colorBorder: "#345550", colorPrimaryForeground: "#FFFFFF", borderRadius: "0.75rem", fontFamily: "Inter, system-ui, sans-serif" }, options: { helpPageUrl: marketingUrl(policy, "/auth-help"), termsPageUrl: marketingUrl(policy, "/terms"), privacyPageUrl: marketingUrl(policy, "/privacy") } }} afterSignOutUrl={centralUrl(policy, "/sign-in")} signInUrl={centralUrl(policy, "/sign-in")} signUpUrl={centralUrl(policy, "/sign-up")} signInFallbackRedirectUrl={centralUrl(policy, "/dashboard")} signUpFallbackRedirectUrl={centralUrl(policy, "/onboarding")}><NavigationProvider policy={policy}>{stagingRequested() && <aside role="note" className="bg-amber-100 px-5 py-2 text-center text-sm font-medium text-amber-950">WorkflowConnect staging · Synthetic records only · Paystack Test Mode · Published prices are the approved commercial prices</aside>}{children}</NavigationProvider></ClerkProvider></body>
     </html>
   );
 }

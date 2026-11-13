@@ -1,4 +1,5 @@
 import "server-only";
+import { stagingRequested } from "../staging/config";
 import { requireCentralHost } from "../routing/request-context";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "../db/prisma";
@@ -9,7 +10,7 @@ import type { PlatformRole } from "@prisma/client";
 import { Pay1AdmissionError } from "../preview/pay1-error";
 type EntryReason = "READY" | "SIGN_IN_REQUIRED" | "IDENTITY_UNAVAILABLE" | "PAY1_WINDOW_CLOSED" | "PAY1_ADMISSION_DENIED" | "ADMIN_NOT_FOUND" | "ADMIN_LOOKUP_UNAVAILABLE" | "MFA_NOT_ENROLLED" | "MFA_CLAIMS_MISSING" | "MFA_CLAIMS_INVALID" | "MFA_NOT_VERIFIED" | "MFA_STALE" | "MFA_CHECK_FAILED";
 function diagnostic(reason: EntryReason, checks: Record<string, boolean> = {}) {
-  if (process.env.VERCEL_ENV !== "preview" || process.env.COREOPS_PAY1_PREVIEW_ENABLED !== "true") return;
+  if (process.env.VERCEL_ENV !== "preview" || (process.env.COREOPS_PAY1_PREVIEW_ENABLED !== "true" && !stagingRequested())) return;
   // Closed codes and locally calculated booleans only. Never pass exceptions,
   // identities, claim contents, role records or provider responses to this sink.
   try { console.info(JSON.stringify({ event: "PLATFORM_ENTRY_CHECK", reason, ...checks })); } catch { /* No raw fallback. */ }
@@ -33,7 +34,7 @@ export async function platformEntry() {
     return { admin: null, signedIn: true, mfa: false, canReverify: false };
   }
   let admin;
-  try { admin = await prisma.platformAdmin.findFirst({ where: { active: true, user: { externalId: identity.id } } }); } catch {
+  try { admin = await prisma.platformAdmin.findFirst({ where: { active: true, user: { externalId: identity.id, platformSuspended: false } } }); } catch {
     diagnostic("ADMIN_LOOKUP_UNAVAILABLE");
     throw new AccessError("FORBIDDEN");
   }

@@ -1,4 +1,5 @@
 import "server-only";
+import { stagingRequested } from "../staging/config";
 import { pay1Enabled } from "../preview/pay1-config";
 import { requestRoutingContext } from "../routing/request-context";
 import { centralUrl } from "@/lib/routing/host-policy";
@@ -13,6 +14,11 @@ import { requireLegalRehearsal } from "../legal/config";
 import { hasCurrentSyntheticLegalReceipt } from "../legal/acceptance";
 
 export async function requireCurrentLegalReceipt(userId: string) {
+  if (stagingRequested()) {
+    const { hasStagingAcknowledgment } = await import("../staging/acknowledgment");
+    if (!await hasStagingAcknowledgment(userId)) redirect("/account/staging-terms");
+    return;
+  }
   if (pay1Enabled()) {
     const { requirePay1Actor } = await import("../preview/pay1-admission");
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { externalId: true } });
@@ -40,7 +46,7 @@ export async function requireCurrentLegalReceipt(userId: string) {
 }
 
 export async function recordLegalAcceptance(accepted: boolean, expected: { termsVersion: string; privacyVersion: string }) {
-  if (pay1Enabled() || process.env.COREOPS_LEGAL_CATALOG_REHEARSAL_ENABLED === "true") throw new IdentityError("LEGAL_ACCEPTANCE_REQUIRED");
+  if (stagingRequested() || pay1Enabled() || process.env.COREOPS_LEGAL_CATALOG_REHEARSAL_ENABLED === "true") throw new IdentityError("LEGAL_ACCEPTANCE_REQUIRED");
   const config = getAuthConfiguration();
   if (!config.legalReady || accepted !== true || expected.termsVersion !== config.termsVersion || expected.privacyVersion !== config.privacyVersion) throw new IdentityError("LEGAL_ACCEPTANCE_REQUIRED");
   const profile = await requireClerkIdentity();

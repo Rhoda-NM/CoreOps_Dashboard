@@ -1,4 +1,7 @@
 import "server-only";
+import { stagingRequested } from "../staging/config";
+import { requireStagingEnvironment } from "../staging/environment";
+import { standardQuotation } from "./standard";
 import { calculateTax, currentTaxConfiguration, expectedTaxInput } from "./tax";
 import { clerkClient } from "@clerk/nextjs/server";
 import { createHash } from "node:crypto";
@@ -27,7 +30,7 @@ async function ownerTransaction<T>(operation: (tx: TX, member: Awaited<ReturnTyp
     await tx.$queryRaw`SELECT id FROM "Workspace" WHERE id = ${context.workspaceId} FOR UPDATE`;
     await requirePay1Workspace(tx, context.workspaceId, false);
     const member = await tx.workspaceMember.findFirst({ where: { id: context.id, userId: context.userId, workspaceId: context.workspaceId, status: "ACTIVE", role: "OWNER" }, include: { user: true, workspace: true } });
-    if (!member || member.workspace.activationStatus === "CLOSED") throw new AccessError("FORBIDDEN");
+    if (!member || member.user.platformSuspended || member.workspace.activationStatus === "CLOSED") throw new AccessError("FORBIDDEN");
     return operation(tx, member);
   });
 }
@@ -54,9 +57,11 @@ async function ownerAudit(tx: TX, member: { userId: string; workspaceId: string 
   await tx.auditLog.create({ data: { workspaceId: member.workspaceId, actorUserId: member.userId, action, resourceType: "SubscriptionRequest", resourceId } });
 }
 export async function publishedOffers() {
+  const stage = stagingRequested() ? await requireStagingEnvironment() : null;
   const tax = await currentTaxConfiguration();
-  const eligibleTreatments = tax && Array.isArray(tax.allowedTreatments) ? tax.allowedTreatments.filter((t): t is "INCLUSIVE" | "EXCLUSIVE" | "EXEMPT" => typeof t === "string" && ["INCLUSIVE", "EXCLUSIVE", "EXEMPT"].includes(t)) : null;
-  return prisma.subscriptionPlanOffer.findMany({ where: { published: true, businessApprovedAt: { not: null }, taxTreatment: eligibleTreatments ? { in: eligibleTreatments } : { not: "UNCONFIRMED" } }, orderBy: [{ plan: "asc" }, { interval: "asc" }, { version: "desc" }] });
+  const eligibleTreatments = tax && Array.isArray(tax.allowedTreatments) ? tax.allowedTreatments.filter((t): t is "INCLUSIVE" | "EXCLUSIVE" | "EXEMPT" | "NON_VAT_REGISTERED" => typeof t === "string" && ["INCLUSIVE", "EXCLUSIVE", "EXEMPT", "NON_VAT_REGISTERED"].includes(t)) : null;
+  const offers = await prisma.subscriptionPlanOffer.findMany({ where: { stagingEnvironmentId: stage?.id ?? null, published: true, businessApprovedAt: { not: null }, taxTreatment: eligibleTreatments ? { in: eligibleTreatments } : { not: "UNCONFIRMED" } }, orderBy: [{ plan: "asc" }, { interval: "asc" }, { version: "desc" }] });
+  return offers.filter((offer, index) => offers.findIndex(other => other.plan === offer.plan && other.interval === offer.interval) === index);
 }
 export async function ownerSubscription() {
   return ownerTransaction(async (tx, member) => ({ workspace: member.workspace, subscription: await tx.subscription.findUnique({ where: { workspaceId: member.workspaceId } }), requests: await tx.subscriptionRequest.findMany({ where: { workspaceId: member.workspaceId }, include: { payments: { include: { receipt: { include: { reversal: true } } } } }, orderBy: { createdAt: "desc" }, take: 50 }), periods: await tx.subscriptionPeriod.findMany({ where: { workspaceId: member.workspaceId }, orderBy: { startsAt: "desc" }, take: 50 }) }));
@@ -70,13 +75,18 @@ export async function submitRequest(offerId: string, type: SubscriptionRequestTy
     if (existing) { if (existing.payloadHash !== payloadHash) throw new CommercialError("This request key was already used with different details."); return existing; }
     const offer = await tx.subscriptionPlanOffer.findUniqueOrThrow({ where: { id: offerId } });
     if (!offer.published || !offer.businessApprovedAt || offer.taxTreatment === "UNCONFIRMED") throw new CommercialError("This offer is not approved for subscription requests.");
+    const stage = stagingRequested() ? await requireStagingEnvironment(tx) : null;
+    if ((offer.stagingEnvironmentId ?? null) !== (stage?.id ?? null)) throw new AccessError("FORBIDDEN");
+    const standard = stage && offer.commercialPath === "STANDARD" && type !== "UPGRADE";
+    const quote = standard ? await standardQuotation(tx, offer) : {};
     const latest = await tx.subscriptionPeriod.findFirst({ where: { workspaceId: member.workspaceId, revokedAt: null }, orderBy: { endsAt: "desc" } });
     if ((type === "INITIAL") === !!latest) throw new CommercialError("Choose the correct initial or renewal request type.");
     if (type === "RENEWAL" && latest && (latest.plan !== offer.plan || latest.interval !== offer.interval)) throw new CommercialError("Renewals must retain the agreed plan and interval. Contact support for a plan change.");
     if (type === "UPGRADE" && latest && planRank(offer.plan) <= planRank(latest.plan)) throw new CommercialError("Only a higher plan can be requested as an upgrade. Downgrades require a separate reviewed policy.");
     const subscription = await tx.subscription.upsert({ where: { workspaceId: member.workspaceId }, update: {}, create: { workspaceId: member.workspaceId, status: "PENDING_ACTIVATION" } });
-    const request = await tx.subscriptionRequest.create({ data: { workspaceId: member.workspaceId, subscriptionId: subscription.id, submittedByUserId: member.userId, offerId, type, idempotencyKey, payloadHash, plan: offer.plan, interval: offer.interval, offerVersion: offer.version, catalogAmount: offer.amount, quotedAmount: offer.amount, currency: offer.currency, memberLimit: offer.memberLimit, projectLimit: offer.projectLimit, invitationsEnabled: offer.invitationsEnabled, features: offer.features as Prisma.InputJsonValue, taxTreatment: offer.taxTreatment } });
+    const request = await tx.subscriptionRequest.create({ data: { workspaceId: member.workspaceId, subscriptionId: subscription.id, submittedByUserId: member.userId, offerId, type, idempotencyKey, payloadHash, commercialPath: standard ? "STANDARD" : "MANUAL", stagingEnvironmentId: stage?.id, ...quote, plan: offer.plan, interval: offer.interval, offerVersion: offer.version, catalogAmount: offer.amount, quotedAmount: offer.amount, currency: offer.currency, memberLimit: offer.memberLimit, projectLimit: offer.projectLimit, invitationsEnabled: offer.invitationsEnabled, features: offer.features as Prisma.InputJsonValue, taxTreatment: offer.taxTreatment } });
     await ownerAudit(tx, member, "SUBSCRIPTION_REQUEST_SUBMITTED", request.id);
+    if (standard) await tx.auditLog.create({ data: { workspaceId: member.workspaceId, actorUserId: null, action: "STANDARD_QUOTATION_PRICED", resourceType: "SubscriptionRequest", resourceId: request.id, metadata: { offerId: offer.id, offerVersion: offer.version, pricingApproval: offer.businessApprovalRef, pricingRelease: offer.pricingRelease } } });
     return request;
   });
 }
@@ -178,7 +188,7 @@ export async function activateSubscription(requestId: string, reason: string, re
     if (await tx.subscriptionPayment.count({ where: { requestId, status: "SUBMITTED" } })) throw new CommercialError("Reconcile or reject every submitted payment claim before activation.");
     const total = await funding(tx, requestId);
     if (total.lt(request.payableAmount) || (total.gt(request.payableAmount) && !request.overpaymentReviewedAt)) throw new CommercialError("Verified funds must cover the quote; overpayments require reconciliation review.");
-    const owners = await tx.workspaceMember.count({ where: { id: verifiedOwner.memberId, workspaceId: request.workspaceId, role: "OWNER", status: "ACTIVE", user: { externalId: verifiedOwner.externalId, email: verifiedOwner.email } } });
+    const owners = await tx.workspaceMember.count({ where: { id: verifiedOwner.memberId, workspaceId: request.workspaceId, role: "OWNER", status: "ACTIVE", user: { externalId: verifiedOwner.externalId, email: verifiedOwner.email, platformSuspended: false } } });
     if (!owners || await capacity(request.workspaceId, tx) > request.memberLimit) throw new CommercialError("An active owner and sufficient member capacity are required.");
     if (request.plan === "SOLO" && (await tx.workspaceMember.count({ where: { workspaceId: request.workspaceId, role: { not: "OWNER" } } }) || request.invitationsEnabled)) throw new CommercialError("Solo allows one owner and no invitations.");
     const now = await lifecycleNow(tx);
@@ -237,7 +247,7 @@ export async function setWorkspaceStatus(workspaceId: string, status: "ACTIVE" |
       await requireWorkspaceMarket(tx, workspaceId);
       await requireRenewableLifecycle(tx, workspaceId, await lifecycleNow(tx));
       const period = await tx.subscriptionPeriod.findFirst({ where: { workspaceId, revokedAt: null, startsAt: { lte: new Date() }, graceEndsAt: { gt: new Date() } } });
-      if (!period || !verifiedOwner || !await tx.workspaceMember.count({ where: { id: verifiedOwner.memberId, workspaceId, role: "OWNER", status: "ACTIVE", user: { externalId: verifiedOwner.externalId, email: verifiedOwner.email } } })) throw new CommercialError("Reactivation requires an eligible paid period and active owner.");
+      if (!period || !verifiedOwner || !await tx.workspaceMember.count({ where: { id: verifiedOwner.memberId, workspaceId, role: "OWNER", status: "ACTIVE", user: { externalId: verifiedOwner.externalId, email: verifiedOwner.email, platformSuspended: false } } })) throw new CommercialError("Reactivation requires an eligible paid period and active owner.");
     }
     await tx.workspace.update({ where: { id: workspaceId }, data: { activationStatus: status } });
     await tx.subscription.update({ where: { workspaceId }, data: { status: status === "ACTIVE" ? "ACTIVE" : "SUSPENDED" } });
@@ -254,16 +264,19 @@ export async function closeRequest(requestId: string, reject: boolean, reason: s
     await audit(tx, admin.id, "REQUEST_CLOSED", requestId, reason, request.workspaceId);
   });
 }
-export async function createOffer(input: { plan: string; interval: string; version: number; name: string; amount: string; memberLimit: number | null; projectLimit: number | null; invitationsEnabled: boolean; taxTreatment: string; features: Record<string, boolean> }) {
+export async function createOffer(input: { plan: string; interval: string; version: number; name: string; amount: string; memberLimit: number | null; projectLimit: number | null; invitationsEnabled: boolean; taxTreatment: string; features: Record<string, boolean>; commercialPath?: string }) {
   const plan = z.enum(["SOLO", "STARTER", "BUSINESS", "ENTERPRISE"]).parse(input.plan);
   const interval = z.enum(["MONTHLY", "ANNUAL"]).parse(input.interval);
-  const taxTreatment = z.enum(["UNCONFIRMED", "INCLUSIVE", "EXCLUSIVE", "EXEMPT"]).parse(input.taxTreatment);
+  const taxTreatment = z.enum(["UNCONFIRMED", "INCLUSIVE", "EXCLUSIVE", "EXEMPT", "NON_VAT_REGISTERED"]).parse(input.taxTreatment);
   const features = z.object({ clients: z.boolean(), projects: z.boolean(), tasks: z.boolean(), invoices: z.boolean(), dashboard: z.boolean() }).strict().parse(input.features);
   if (plan === "SOLO" && Object.values(features).some(enabled => !enabled)) throw new CommercialError("Solo must include clients, projects, tasks, invoices, and the basic dashboard.");
   const memberLimit = input.memberLimit === null && plan === "ENTERPRISE" ? null : z.number().int().positive().max(100000).parse(input.memberLimit);
   if ((plan === "SOLO" && (memberLimit !== 1 || input.invitationsEnabled)) || (plan === "STARTER" && memberLimit !== 3) || (plan === "BUSINESS" && memberLimit !== 10)) throw new CommercialError("Member allowance does not match the plan policy.");
   return platformTransaction("catalog", null, async (tx, admin) => {
-    const offer = await tx.subscriptionPlanOffer.create({ data: { plan, interval, version: z.number().int().positive().parse(input.version), name: text(input.name), amount: input.amount ? money(input.amount) : null, memberLimit, projectLimit: input.projectLimit === null ? null : z.number().int().positive().parse(input.projectLimit), invitationsEnabled: input.invitationsEnabled, features, taxTreatment } });
+    const stage = stagingRequested() ? await requireStagingEnvironment(tx) : null;
+    const commercialPath = z.enum(["MANUAL", "STANDARD"]).parse(input.commercialPath ?? "MANUAL");
+    if (commercialPath === "STANDARD" && (!stage || plan === "ENTERPRISE" || !input.amount)) throw new CommercialError("Standard offers require staging and a published fixed price.");
+    const offer = await tx.subscriptionPlanOffer.create({ data: { pricingRelease: stage ? `ADMIN-${plan}-${interval}-${input.version}` : undefined, commercialPath, stagingEnvironmentId: stage?.id, plan, interval, version: z.number().int().positive().parse(input.version), name: text(input.name), amount: input.amount ? money(input.amount) : null, memberLimit, projectLimit: input.projectLimit === null ? null : z.number().int().positive().parse(input.projectLimit), invitationsEnabled: input.invitationsEnabled, features, taxTreatment } });
     await audit(tx, admin.id, "OFFER_DRAFT_CREATED", offer.id, "New unpublished offer version"); return offer;
   });
 }
@@ -271,6 +284,8 @@ export async function publishOffer(offerId: string, approvalReference: string, p
   return platformTransaction("catalog", null, async (tx, admin) => {
     await tx.$queryRaw`SELECT id FROM "SubscriptionPlanOffer" WHERE id = ${offerId} FOR UPDATE`;
     const offer = await tx.subscriptionPlanOffer.findUniqueOrThrow({ where: { id: offerId } });
+    const stage = stagingRequested() ? await requireStagingEnvironment(tx) : null;
+    if ((offer.stagingEnvironmentId ?? null) !== (stage?.id ?? null)) throw new AccessError("FORBIDDEN");
     if (published && (offer.taxTreatment === "UNCONFIRMED" || (!offer.amount && offer.plan !== "ENTERPRISE"))) throw new CommercialError("Confirm tax treatment and pricing in a new offer version before publishing.");
     const result = await tx.subscriptionPlanOffer.update({ where: { id: offerId }, data: { published, ...(!offer.businessApprovedAt && published ? { businessApprovedAt: new Date(), businessApprovalRef: text(approvalReference), approvedById: admin.id } : {}) } });
     await audit(tx, admin.id, published ? "OFFER_PUBLISHED" : "OFFER_WITHDRAWN", offerId, approvalReference); return result;
@@ -325,7 +340,7 @@ export async function platformMetrics() {
 }
 
 async function verifyWorkspaceOwner(workspaceId: string, userId?: string) {
-  const candidates = await prisma.workspaceMember.findMany({ where: { workspaceId, ...(userId ? { userId } : {}), role: "OWNER", status: "ACTIVE", user: { externalId: { not: null } } }, select: { id: true, user: { select: { externalId: true, email: true } } }, take: 10 });
+  const candidates = await prisma.workspaceMember.findMany({ where: { workspaceId, ...(userId ? { userId } : {}), role: "OWNER", status: "ACTIVE", user: { externalId: { not: null }, platformSuspended: false } }, select: { id: true, user: { select: { externalId: true, email: true } } }, take: 10 });
   const client = await clerkClient();
   for (const candidate of candidates) {
     try {

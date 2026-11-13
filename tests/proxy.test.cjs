@@ -52,7 +52,7 @@ test('workspace context comes from the URL in path mode and forged context is re
 }));
 test('path-mode private platform entry and public metadata/webhooks retain authentication behavior',()=>inMode('path',async()=>{
   let calls=0;const auth=Object.assign(async()=>({userId:null}),{protect:async()=>{calls++;}});
-  for(const pathname of ['/features','/platform/sign-in','/platform/sign-in/factor-two','/platform/access-denied','/api/payments/paystack/test/webhook','/robots.txt','/sitemap.xml','/opengraph-image','/apple-icon']) assert.equal((await request(`http://localhost:3000${pathname}`,auth)).status,200);
+  for(const pathname of ['/features','/platform/sign-in','/platform/sign-in/factor-two','/platform/access-denied','/robots.txt','/sitemap.xml','/opengraph-image','/apple-icon']) assert.equal((await request(`http://localhost:3000${pathname}`,auth)).status,200);
   assert.equal(calls,0);
   const denied=await request('http://localhost:3000/platform/payments',auth);
   assert.equal(denied.status,307);assert.equal(denied.headers.get('location'),'http://localhost:3000/platform/sign-in');
@@ -116,4 +116,15 @@ test('Resend webhook is exact central POST, never a tenant action or interactive
  const before=clerkCalls;assert.equal((await request('https://app.workflowconnect.io/api/notifications/resend/webhook',null,{},'POST')).status,200);assert.equal(clerkCalls,before);
  for(const host of ['workflowconnect.io','tenant-a.workflowconnect.io'])assert.equal((await request(`https://${host}/api/notifications/resend/webhook`,null,{},'POST')).status,404);
  assert.equal((await request('https://app.workflowconnect.io/api/notifications/resend/webhook')).status,404);
+}));
+
+
+test('Paystack POST uses central machine signature handling, never Clerk interactive middleware',()=>inMode('subdomain',async()=>{
+ const before=clerkCalls;assert.equal((await request('https://app.workflowconnect.io/api/payments/paystack/test/webhook',null,{},'POST')).status,200);assert.equal(clerkCalls,before);
+ assert.equal((await request('https://app.workflowconnect.io/api/payments/paystack/test/webhook')).status,404);
+ for(const host of ['workflowconnect.io','tenant-a.workflowconnect.io'])assert.equal((await request(`https://${host}/api/payments/paystack/test/webhook`,null,{},'POST')).status,404);
+}));
+test('exact public brochure reads are identity-provider independent but action posts are not',()=>inMode('path',async()=>{
+ const before=clerkCalls;assert.equal((await request('http://localhost:3000/pricing')).status,200);assert.equal(clerkCalls,before);
+ await request('http://localhost:3000/pricing',undefined,{'next-action':'forged'},'POST');assert.ok(clerkCalls>before);
 }));

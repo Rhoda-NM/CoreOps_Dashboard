@@ -1,4 +1,11 @@
 import "server-only";
+import { stagingRequested } from "../staging/config";
+import { requireStagingEnvironment } from "../staging/environment";
+import { commercialAccess } from "../commercial/access";
+import { activateStandardPayment } from "../commercial/standard";
+import { clerkClient } from "@clerk/nextjs/server";
+import { getCurrentUser } from "../auth/get-current-user";
+import { requireCentralHost } from "../routing/request-context";
 import { createHash, randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -27,7 +34,7 @@ export async function initializePaystack(requestId: string, idempotencyKey: stri
   const prepared = await prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM "Workspace" WHERE id=${actor.workspaceId} FOR UPDATE`;
     await requireWorkspaceMarket(tx, actor.workspaceId);
-    const owner = await tx.workspaceMember.findFirst({ where: { id: actor.id, userId: actor.userId, workspaceId: actor.workspaceId, status: "ACTIVE", role: "OWNER", workspace: { activationStatus: { not: "CLOSED" } } } });
+    const owner = await tx.workspaceMember.findFirst({ where: { id: actor.id, userId: actor.userId, workspaceId: actor.workspaceId, status: "ACTIVE", role: "OWNER", user: { platformSuspended: false }, workspace: { activationStatus: { not: "CLOSED" } } } });
     if (!owner) throw new CommercialError("Only an active workspace owner can initialize payment.");
     const request = await tx.subscriptionRequest.findFirstOrThrow({ where: { id: requestId, workspaceId: actor.workspaceId }, include: { receivingAccount: true } });
     const existing = await tx.paystackAttempt.findUnique({ where: { workspaceId_idempotencyKey: { workspaceId: actor.workspaceId, idempotencyKey } } });
@@ -45,7 +52,7 @@ export async function initializePaystack(requestId: string, idempotencyKey: stri
     await tx.auditLog.create({ data: { workspaceId: actor.workspaceId, actorUserId: actor.userId, action: "PAYSTACK_CHECKOUT_REQUESTED", resourceType: "SubscriptionRequest", resourceId: requestId, metadata: { mode, attemptId: attempt.id } } });
     return attempt;
   });
-  if (prepared.status !== "CREATED") return { reference: prepared.reference, authorizationUrl: prepared.authorizationUrl, status: prepared.status };
+  if (prepared.status !== "CREATED") return { reference: prepared.reference, authorizationUrl: ["FAILED", "ABANDONED"].includes(prepared.status) ? null : prepared.authorizationUrl, status: prepared.status };
   // Claim initialization before network I/O. An ambiguous timeout never creates a
   // replacement reference or silently retries a potentially successful POST.
   const claimed = await prisma.paystackAttempt.updateMany({ where: { id: prepared.id, status: "CREATED" }, data: { status: "REVIEW", lastError: "INITIALIZATION_IN_PROGRESS_OR_AMBIGUOUS" } });
@@ -66,31 +73,70 @@ async function verifyAndCredit(reference: string, mode: GatewayMode, administrat
   const attempt = await prisma.paystackAttempt.findUniqueOrThrow({ where: { reference } });
   if (attempt.mode !== mode || attempt.merchantId !== config.merchantId || attempt.keyFingerprint !== config.keyFingerprint) throw new CommercialError("MERCHANT_OR_MODE_MISMATCH");
   await requirePay1Workspace(prisma, attempt.workspaceId, false);
+  let ownerIdentity: { externalId: string; email: string } | null = null;
+  const requestContext = await prisma.subscriptionRequest.findUniqueOrThrow({ where: { id: attempt.requestId }, include: { submittedBy: true } });
+  if (requestContext.commercialPath === "STANDARD" && requestContext.submittedBy.externalId) {
+    try {
+      const profile = await (await clerkClient()).users.getUser(requestContext.submittedBy.externalId);
+      const email = profile.emailAddresses.find(e => e.id === profile.primaryEmailAddressId);
+      if (!profile.banned && !profile.locked && email?.verification?.status === "verified") ownerIdentity = { externalId: profile.id, email: email.emailAddress.trim().toLowerCase() };
+    } catch { /* Funds remain recordable; activation requires live Owner verification. */ }
+  }
   const data = await api(config, `transaction/verify/${encodeURIComponent(reference)}`);
   const metadata = typeof data.metadata === "string" ? JSON.parse(data.metadata) : data.metadata;
   const rawTransactionId = typeof data.id === "number" && Number.isSafeInteger(data.id) && data.id > 0 ? String(data.id) : typeof data.id === "string" && /^\d{1,30}$/.test(data.id) ? data.id : null;
   const transactionId = rawTransactionId && BigInt(rawTransactionId) > BigInt(0) ? BigInt(rawTransactionId).toString() : null;
-  if (data.status !== "success" || data.reference !== reference || data.domain !== mode || data.currency !== attempt.currency || !Number.isSafeInteger(data.amount) || BigInt(data.amount) !== attempt.expectedMinor || !transactionId || !metadata || metadata.coreopsRequestId !== attempt.requestId || metadata.coreopsWorkspaceId !== attempt.workspaceId || metadata.coreopsAttemptId !== attempt.id || metadata.coreopsMerchantId !== attempt.merchantId || metadata.coreopsMode !== mode || (data.integration !== undefined && String(data.integration) !== config.merchantId) || !config.channels.includes(data.channel) || data.plan || (data.split && Object.keys(data.split).length) || (data.subaccount && Object.keys(data.subaccount).length)) throw new CommercialError("PROVIDER_TRANSACTION_MISMATCH");
+  if (data.reference !== reference || data.domain !== mode || data.currency !== attempt.currency || !Number.isSafeInteger(data.amount) || BigInt(data.amount) !== attempt.expectedMinor || !transactionId || !metadata || metadata.coreopsRequestId !== attempt.requestId || metadata.coreopsWorkspaceId !== attempt.workspaceId || metadata.coreopsAttemptId !== attempt.id || metadata.coreopsMerchantId !== attempt.merchantId || metadata.coreopsMode !== mode || (data.integration !== undefined && String(data.integration) !== config.merchantId) || !config.channels.includes(data.channel) || data.plan || (data.split && Object.keys(data.split).length) || (data.subaccount && Object.keys(data.subaccount).length)) throw new CommercialError("PROVIDER_TRANSACTION_MISMATCH");
+  if (data.status !== "success") {
+    const status = ["failed", "abandoned", "pending", "ongoing", "processing", "reversed"].includes(data.status) ? String(data.status).toUpperCase() : "UNKNOWN";
+    await prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM "Workspace" WHERE id=${attempt.workspaceId} FOR UPDATE`;
+      await requirePay1Workspace(tx, attempt.workspaceId, false);
+      const terminal = stagingRequested() && ["FAILED", "ABANDONED"].includes(status);
+      const existingReceipt = await tx.subscriptionPaymentReceipt.findUnique({ where: { providerAttemptId: attempt.id } });
+      await tx.paystackAttempt.update({ where: { id: attempt.id }, data: { status: terminal && !existingReceipt ? status as "FAILED" | "ABANDONED" : "REVIEW", lastError: `PROVIDER_${status}` } });
+      if (terminal && !existingReceipt) {
+        await tx.subscriptionPayment.update({ where: { id: attempt.paymentId }, data: { status: "REJECTED", reviewNotes: "Provider independently confirmed this checkout did not complete. A fresh checkout may be started if no charge occurred." } });
+        await tx.auditLog.create({ data: { workspaceId: attempt.workspaceId, actorUserId: null, action: "PAYSTACK_TERMINAL_FAILURE_CONFIRMED", resourceType: "PaystackAttempt", resourceId: attempt.id } });
+      }
+      if (stagingRequested() && status === "REVERSED") {
+        const receipt = await tx.subscriptionPaymentReceipt.findUnique({ where: { providerAttemptId: attempt.id } });
+        const period = receipt ? await tx.subscriptionPeriod.findFirst({ where: { sourceRequestId: receipt.requestId, revokedAt: null } }) : null;
+        if (period) {
+          await tx.subscriptionPeriod.update({ where: { id: period.id }, data: { revokedAt: new Date() } });
+          await tx.workspace.update({ where: { id: attempt.workspaceId }, data: { activationStatus: "SUSPENDED" } });
+          await tx.subscription.update({ where: { workspaceId: attempt.workspaceId }, data: { status: "SUSPENDED" } });
+          await tx.auditLog.create({ data: { workspaceId: attempt.workspaceId, actorUserId: null, action: "PROVIDER_REVERSAL_REVIEW_REQUIRED", resourceType: "PaystackAttempt", resourceId: attempt.id } });
+        }
+      }
+    });
+    throw new CommercialError("Payment is not confirmed. Check its status or contact support; no new access was granted.");
+  }
   const receivedAt = z.string().datetime({ offset: true }).transform(value => new Date(value)).refine(value => value <= new Date()).parse(data.paid_at);
   return prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM "Workspace" WHERE id=${attempt.workspaceId} FOR UPDATE`;
     await requirePay1Workspace(tx, attempt.workspaceId, false);
+    if (requestContext.commercialPath === "STANDARD") {
+      const w = await tx.workspace.findUniqueOrThrow({ where: { id: attempt.workspaceId }, select: { marketApplicationId: true } });
+      if (w.marketApplicationId) await tx.$queryRaw`SELECT id FROM "MarketApplication" WHERE id=${w.marketApplicationId} FOR UPDATE`;
+    }
     if (administratorId) {
       await tx.$queryRaw`SELECT id FROM "PlatformAdmin" WHERE id=${administratorId} FOR UPDATE`;
       const admin = await tx.platformAdmin.findUniqueOrThrow({ where: { id: administratorId } });
       if (!admin.active || !["SUPER_ADMIN", "BILLING_ADMIN"].includes(admin.role)) throw new CommercialError("Administrator access was revoked.");
     }
     const fresh = await tx.paystackAttempt.findUniqueOrThrow({ where: { id: attempt.id }, include: { payment: { include: { request: true } }, receipt: true } });
-    if (fresh.receipt) return fresh.receipt.id;
+    if (fresh.receipt) { await activateStandardPayment(tx, fresh.requestId, fresh.receipt.id, ownerIdentity); return fresh.receipt.id; }
     const request = fresh.payment.request;
     if (!request.taxSnapshot || !request.approvedAt || !request.quoteAcceptedAt || !request.payableAmount || !request.payableAmount.mul(100).equals(attempt.expectedMinor.toString())) throw new CommercialError("QUOTE_MISMATCH");
-    const receipt = await tx.subscriptionPaymentReceipt.create({ data: { submissionId: fresh.paymentId, workspaceId: fresh.workspaceId, requestId: fresh.requestId, receivingAccountId: fresh.receivingAccountId, method: "PAYSTACK", currency: fresh.currency, amount: new Prisma.Decimal(fresh.expectedMinor.toString()).div(100), transactionReference: fresh.reference.toUpperCase(), ledgerEntryId: `paystack:${mode}:${fresh.merchantId}:${transactionId}`, receivedAt, confirmationSource: "PAYSTACK", providerAttemptId: fresh.id, verificationNotes: "Confirmed by authenticated Paystack transaction verification; activation requires separate SUPER_ADMIN approval.", taxSnapshot: request.taxSnapshot as Prisma.InputJsonValue } });
+    const receipt = await tx.subscriptionPaymentReceipt.create({ data: { submissionId: fresh.paymentId, workspaceId: fresh.workspaceId, requestId: fresh.requestId, receivingAccountId: fresh.receivingAccountId, method: "PAYSTACK", currency: fresh.currency, amount: new Prisma.Decimal(fresh.expectedMinor.toString()).div(100), transactionReference: fresh.reference.toUpperCase(), ledgerEntryId: `paystack:${mode}:${fresh.merchantId}:${transactionId}`, receivedAt, confirmationSource: "PAYSTACK", providerAttemptId: fresh.id, verificationNotes: request.commercialPath === "STANDARD" ? "Authenticated Test Mode provider verification; standard activation is independently gated." : "Confirmed by authenticated Paystack transaction verification; activation requires separate SUPER_ADMIN approval.", taxSnapshot: request.taxSnapshot as Prisma.InputJsonValue } });
     await tx.subscriptionPayment.update({ where: { id: fresh.paymentId }, data: { status: "RECONCILED" } });
     const total = await tx.subscriptionPaymentReceipt.aggregate({ where: { requestId: request.id, reversal: null }, _sum: { amount: true } });
     if (["AWAITING_PAYMENT", "READY_FOR_ACTIVATION"].includes(request.status)) await tx.subscriptionRequest.update({ where: { id: request.id }, data: { status: (total._sum.amount ?? new Prisma.Decimal(0)).gte(request.payableAmount) ? "READY_FOR_ACTIVATION" : "AWAITING_PAYMENT", overpaymentReviewedAt: null, overpaymentReviewedById: null, overpaymentDisposition: null } });
     await tx.paystackAttempt.update({ where: { id: fresh.id }, data: { status: "CONFIRMED", providerTransactionId: transactionId, lastError: null } });
     await tx.auditLog.create({ data: { workspaceId: fresh.workspaceId, actorUserId: null, action: "PAYSTACK_RECEIPT_CONFIRMED", resourceType: "SubscriptionPaymentReceipt", resourceId: receipt.id, metadata: { mode, requestId: fresh.requestId, providerAttemptId: fresh.id } } });
     if (administratorId) await tx.platformAuditEvent.create({ data: { actorAdminId: administratorId, action: "PAYSTACK_RECONCILED", resourceType: "SubscriptionPaymentReceipt", resourceId: receipt.id, workspaceId: fresh.workspaceId, reason: "Authenticated provider reconciliation; manual activation remains separate." } });
+    await activateStandardPayment(tx, fresh.requestId, receipt.id, ownerIdentity);
     return receipt.id;
   });
 }
@@ -107,7 +153,8 @@ export async function processPaystackWebhook(raw: Buffer, modern: string | null,
     await requirePay1Workspace(prisma, scoped.workspaceId, false);
   }
   const eventHash = createHash("sha256").update(raw).digest("hex");
-  const event = await prisma.paystackWebhookEvent.upsert({ where: { mode_eventHash: { mode, eventHash } }, update: {}, create: { mode, eventHash, reference, eventType: parsed.event } });
+  await prisma.paystackWebhookEvent.createMany({ data: [{ mode, eventHash, reference, eventType: parsed.event }], skipDuplicates: true });
+  const event = await prisma.paystackWebhookEvent.findUniqueOrThrow({ where: { mode_eventHash: { mode, eventHash } } });
   if (event.status === "PROCESSED") return;
   const attempt = await prisma.paystackAttempt.findUnique({ where: { reference } });
   if (!attempt) { await prisma.paystackWebhookEvent.update({ where: { id: event.id }, data: { status: "REVIEW", failureCode: "UNKNOWN_REFERENCE" } }); return; }
@@ -116,7 +163,7 @@ export async function processPaystackWebhook(raw: Buffer, modern: string | null,
     await prisma.paystackWebhookEvent.update({ where: { id: event.id }, data: { status: "PROCESSED", processedAt: new Date(), failureCode: null } });
   } catch {
     await prisma.paystackWebhookEvent.update({ where: { id: event.id }, data: { status: "REVIEW", failureCode: "VERIFICATION_REQUIRED" } });
-    await prisma.paystackAttempt.updateMany({ where: { id: attempt.id, status: { not: "CONFIRMED" } }, data: { status: "REVIEW", lastError: "VERIFICATION_REQUIRED" } });
+    await prisma.paystackAttempt.updateMany({ where: { id: attempt.id, status: { in: ["CREATED", "INITIALIZED", "REVIEW"] } }, data: { status: "REVIEW", lastError: "VERIFICATION_REQUIRED" } });
     throw new CommercialError("RECONCILIATION_REQUIRED");
   }
 }
@@ -136,6 +183,8 @@ export async function registerPaystackMerchant(mode: GatewayMode, approval: stri
     const admin = await tx.platformAdmin.findUniqueOrThrow({ where: { id: actor.id } });
     if (!admin.active || admin.role !== "SUPER_ADMIN") throw new CommercialError("Active super administrator required.");
     if (pay1Enabled()) await requirePay1Admission(tx);
+    const prior = await tx.paymentReceivingAccount.findUnique({ where: { method_accountIdentifier: { method: "PAYSTACK", accountIdentifier: `paystack:${mode}:${config.merchantId}` } } });
+    if (prior) { if (!prior.active || !prior.verifiedAt) throw new CommercialError("Existing merchant requires explicit review."); return prior; }
     const account = await tx.paymentReceivingAccount.create({ data: { label: `Paystack ${mode}`, method: "PAYSTACK", currency: config.currency, accountIdentifier: `paystack:${mode}:${config.merchantId}`, instructions: "Pay through WorkflowConnect approved Paystack checkout. A successful return does not activate the workspace.", active: true, verifiedAt: new Date(), verifiedById: admin.id } });
     await tx.platformAuditEvent.create({ data: { actorAdminId: admin.id, action: "PAYSTACK_MERCHANT_APPROVED", resourceType: "PaymentReceivingAccount", resourceId: account.id, reason: approval, metadata: { mode, merchantId: config.merchantId, capabilitiesApproval: process.env[`PAYSTACK_${mode.toUpperCase()}_CAPABILITIES_APPROVAL`]!, settlementApproval: process.env[`PAYSTACK_${mode.toUpperCase()}_SETTLEMENT_APPROVAL`]! } } });
     return account;
@@ -144,4 +193,17 @@ export async function registerPaystackMerchant(mode: GatewayMode, approval: stri
 export function checkoutMode(): GatewayMode | null {
   const mode = process.env.COREOPS_ENVIRONMENT === "production" ? "live" : "test";
   try { paystackConfig(mode, true); return mode; } catch { return null; }
+}
+
+// Authenticated payer reconciliation, never an unsigned browser confirmation.
+export async function reconcileOwnPaystack(reference: string) {
+  if (!stagingRequested()) throw new CommercialError("Self-service payment reconciliation is staging-only.");
+  await requireStagingEnvironment();
+  z.string().regex(/^[a-zA-Z0-9_-]{1,100}$/).parse(reference);
+  await requireCentralHost();
+  const user = await getCurrentUser();
+  const attempt = await prisma.paystackAttempt.findFirstOrThrow({ where: { reference, payment: { submittedByUserId: user.id, workspace: { members: { some: { userId: user.id, status: "ACTIVE", role: "OWNER" } } } }, mode: "test" } });
+  await verifyAndCredit(attempt.reference, "test");
+  const request = await prisma.subscriptionRequest.findUniqueOrThrow({ where: { id: attempt.requestId }, select: { status: true } });
+  return { ...request, operational: (await commercialAccess(attempt.workspaceId)).write };
 }

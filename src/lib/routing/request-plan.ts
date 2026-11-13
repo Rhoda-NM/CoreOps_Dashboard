@@ -25,6 +25,12 @@ export function planRequest(policy: RoutingPolicy, input: { host: string | null;
     if(input.method!=="POST"||(policy.mode==="subdomain"&&host.kind!=="app"))return deny;
     return {action:"next",host,public:true,infrastructure:true,internalPath:path};
   }
+  // Paystack is a machine POST authenticated by raw-body signature and an
+  // independent provider verification, never an interactive Clerk session.
+  if (webhook(path)) {
+    if (input.method !== "POST" || (policy.mode === "subdomain" && host.kind !== "app")) return deny;
+    return { action: "next", host, public: true, infrastructure: true, internalPath: path };
+  }
   // Machine authentication is enforced by the handler, never by User-Agent.
   // Explicitly bypass interactive Clerk only on this exact central GET route.
   if (path === "/api/lifecycle/process" || path === "/api/lifecycle/export-cleanup" || path === "/api/notifications/capture") {

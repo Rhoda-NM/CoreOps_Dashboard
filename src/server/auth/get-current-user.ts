@@ -1,4 +1,5 @@
 import "server-only";
+import { stagingRequested } from "../staging/config";
 import { Pay1AdmissionError } from "../preview/pay1-error";
 import { pay1Enabled } from "../preview/pay1-config";
 import { cache } from "react";
@@ -14,11 +15,14 @@ export const getCurrentUser = cache(async () => {
   const externalId = profile.id;
   const email = profile.primaryEmailAddress!.emailAddress.trim().toLowerCase();
   const existing = await prisma.user.findUnique({ where: { externalId } });
+  if (existing?.platformSuspended) throw new IdentityError("ACCOUNT_UNAVAILABLE");
   // Even legacy differently-cased addresses cannot be claimed by a new identity.
   const emailOwner = await prisma.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } }, select: { id: true, externalId: true } });
   if (emailOwner && emailOwner.externalId !== externalId) throw new IdentityError("IDENTITY_CONFLICT");
   if (!existing && getAuthConfiguration().requireLegal) {
-    if (pay1Enabled()) {
+    if (stagingRequested()) {
+      if (!await isRegistrationReady()) throw new IdentityError("STAGING_REGISTRATION_UNAVAILABLE");
+    } else if (pay1Enabled()) {
       if (!await isRegistrationReady()) throw new Pay1AdmissionError("PAY1_REGISTRATION_UNAVAILABLE");
     } else if (!profile.legalAcceptedAt || !await isRegistrationReady()) throw new IdentityError("LEGAL_ACCEPTANCE_REQUIRED");
   }
@@ -29,7 +33,7 @@ export const getCurrentUser = cache(async () => {
   }
   try {
     const user = await prisma.$transaction(async transaction => {
-      if (pay1Enabled()) {
+      if (pay1Enabled() || stagingRequested()) {
         const { requirePay1Actor } = await import("../preview/pay1-admission");
         await requirePay1Actor(externalId, transaction);
       }
@@ -40,12 +44,13 @@ export const getCurrentUser = cache(async () => {
       }
       return user;
     });
+    if (user.platformSuspended) throw new IdentityError("ACCOUNT_UNAVAILABLE");
     await requireCurrentLegalReceipt(user.id);
     return user;
   } catch (error) {
     if (error && typeof error === "object" && "code" in error && error.code === "P2002") {
       const raced = await prisma.user.findUnique({ where: { externalId } });
-      if (!existing && raced && raced.email.toLowerCase() === email) {
+      if (!existing && raced && !raced.platformSuspended && raced.email.toLowerCase() === email) {
         await requireCurrentLegalReceipt(raced.id);
         return raced;
       }

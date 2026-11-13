@@ -42,7 +42,13 @@
     "test:pay1-registration": "node tests/pay1-registration.test.cjs",
     "test:account-entry": "node tests/account-entry.test.cjs",
     "test:auth-pages": "node tests/auth-pages.test.cjs",
-    "test:platform-reverification": "node tests/platform-reverification.test.cjs"
+    "test:platform-reverification": "node tests/platform-reverification.test.cjs",
+    "test:staging": "node --env-file=.env scripts/with-staging-rehearsal.cjs node tests/staging.integration.cjs",
+    "staging:readiness": "node scripts/staging-readiness.cjs",
+    "staging:setup": "node scripts/staging-setup.cjs",
+    "staging:migrate": "node scripts/staging-migrate.cjs",
+    "test:staging-browser": "node --env-file=.env scripts/with-staging-rehearsal.cjs node tests/staging-browser.cjs",
+    "test:staging-config": "node tests/staging-config.test.cjs"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -66,6 +72,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "1.65.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",

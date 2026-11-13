@@ -39,7 +39,7 @@ function find(tree,type){if(!tree)return [];if(Array.isArray(tree))return tree.f
 test('platform strict MFA step-up, database roles and actual PAY-1 admission boundary',async t=>{
  const originalEnv={...process.env},info=console.info;console.info=line=>logs.push(line);
  try{
- await t.test('fresh enrolled SUPER_ADMIN is authorized and lookup is active/external-ID scoped',async()=>{reset();assert.equal((await requirePlatform('catalog')).id,target.id);assert.deepEqual(findArgs,{where:{active:true,user:{externalId:target.id}}});assert.equal(reason(),'READY');assert.deepEqual(await verifyPlatformSession(),{status:'verified'});});
+ await t.test('fresh enrolled SUPER_ADMIN is authorized and lookup is active/external-ID scoped',async()=>{reset();assert.equal((await requirePlatform('catalog')).id,target.id);assert.deepEqual(findArgs,{where:{active:true,user:{externalId:target.id,platformSuspended:false}}});assert.equal(reason(),'READY');assert.deepEqual(await verifyPlatformSession(),{status:'verified'});});
  await t.test('stale MFA denies data/services, redirects entry to step-up and returns supported SDK hint',async()=>{
   reset();fva=[12,12];strict=false;const entry=await platformEntry();assert.equal(entry.mfa,false);assert.equal(entry.canReverify,true);assert.equal(reason(),'MFA_STALE');await assert.rejects(requirePlatform('activate'),/REDIRECT:\/platform\/verify/);
   await assert.rejects(ProtectedLayout({children:'secret-data'}),/REDIRECT:\/platform\/verify/);await assert.rejects(SignInPage(),/REDIRECT:\/platform\/verify/);

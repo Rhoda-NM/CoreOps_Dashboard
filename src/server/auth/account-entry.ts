@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { IdentityError, type IdentityFailure } from "./identity-error";
 import { Pay1AdmissionError, pay1FailedSettings, type Pay1Failure } from "../preview/pay1-error";
 export type AccountEntryFailure = IdentityFailure | Pay1Failure | "ACCOUNT_SCHEMA_REQUIRED" | "ACCOUNT_DATABASE_UNAVAILABLE";
-const expectedReasons = new Set<string>(["VERIFICATION_REQUIRED", "IDENTITY_CONFLICT", "ACCOUNT_UNAVAILABLE", "SESSION_UNAVAILABLE", "PROVIDER_UNAVAILABLE", "LEGAL_ACCEPTANCE_REQUIRED", "PAY1_REGISTRATION_UNAVAILABLE", "PAY1_CONFIGURATION_REQUIRED", "PAY1_SCHEMA_REQUIRED", "PAY1_ADMISSION_REQUIRED", "PAY1_ADMISSION_UNAVAILABLE", "PAY1_TARGET_MISMATCH", "PAY1_WINDOW_CLOSED", "PAY1_ACTOR_NOT_ADMITTED"]);
+const expectedReasons = new Set<string>(["STAGING_CONFIGURATION_REQUIRED", "STAGING_REGISTRATION_UNAVAILABLE", "VERIFICATION_REQUIRED", "IDENTITY_CONFLICT", "ACCOUNT_UNAVAILABLE", "SESSION_UNAVAILABLE", "PROVIDER_UNAVAILABLE", "LEGAL_ACCEPTANCE_REQUIRED", "PAY1_REGISTRATION_UNAVAILABLE", "PAY1_CONFIGURATION_REQUIRED", "PAY1_SCHEMA_REQUIRED", "PAY1_ADMISSION_REQUIRED", "PAY1_ADMISSION_UNAVAILABLE", "PAY1_TARGET_MISMATCH", "PAY1_WINDOW_CLOSED", "PAY1_ACTOR_NOT_ADMITTED"]);
 export function accountEntryFailure(error: unknown): AccountEntryFailure | null {
   if ((error instanceof IdentityError || error instanceof Pay1AdmissionError) && expectedReasons.has(error.reason)) return error.reason;
   if (error instanceof Prisma.PrismaClientKnownRequestError && ["P2021", "P2022"].includes(error.code)) return "ACCOUNT_SCHEMA_REQUIRED";

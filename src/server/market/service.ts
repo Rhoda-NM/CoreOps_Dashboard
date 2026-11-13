@@ -20,8 +20,8 @@ export async function submitMarketApplication(value: z.input<typeof input>) {
   return prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM "User" WHERE id=${actor.id} FOR UPDATE`;
     const admission = await requirePay1Actor(actor.externalId!, tx);
-    const identity = await tx.user.findUniqueOrThrow({ where: { id: actor.id }, select: { externalId: true, email: true } });
-    if (identity.externalId !== actor.externalId || identity.email !== actor.email) throw new AccessError("FORBIDDEN");
+    const identity = await tx.user.findUniqueOrThrow({ where: { id: actor.id }, select: { externalId: true, email: true, platformSuspended: true } });
+    if (identity.platformSuspended || identity.externalId !== actor.externalId || identity.email !== actor.email) throw new AccessError("FORBIDDEN");
     const old = await tx.marketSubmission.findUnique({ where: { applicantUserId_idempotencyKey: { applicantUserId: actor.id, idempotencyKey: data.idempotencyKey } } });
     if (old) { await requirePay1Case(tx, old.applicationId); if (old.payloadHash !== payloadHash) throw new AccessError("CONFLICT"); return tx.marketApplication.findUniqueOrThrow({ where: { id: old.applicationId } }); }
     if (await tx.marketSubmission.count({ where: { applicantUserId: actor.id, attestedAt: { gt: new Date(Date.now() - 3600000) } } }) >= 10) throw new AccessError("FORBIDDEN");
@@ -114,8 +114,8 @@ export async function withdrawMarketApplication(id: string, expectedRevision: nu
   requireMarketRehearsal(); await requireCentralHost(); const actor = await getCurrentUser(); key.parse(operationKey);
   return prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM "User" WHERE id=${actor.id} FOR UPDATE`;
-    const identity = await tx.user.findUniqueOrThrow({ where: { id: actor.id }, select: { externalId: true, email: true } });
-    if (identity.externalId !== actor.externalId || identity.email !== actor.email) throw new AccessError("FORBIDDEN");
+    const identity = await tx.user.findUniqueOrThrow({ where: { id: actor.id }, select: { externalId: true, email: true, platformSuspended: true } });
+    if (identity.platformSuspended || identity.externalId !== actor.externalId || identity.email !== actor.email) throw new AccessError("FORBIDDEN");
     await tx.$queryRaw`SELECT id FROM "MarketApplication" WHERE id=${id} FOR UPDATE`;
     await requirePay1Actor(actor.externalId!, tx);
     await requirePay1Case(tx, id);

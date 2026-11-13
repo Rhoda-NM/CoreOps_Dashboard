@@ -23,7 +23,7 @@ export async function platformAction(_state: CommercialState, data: FormData): P
       case "status": await commercial.setWorkspaceStatus(v("id"), v("status") as "ACTIVE" | "SUSPENDED" | "CLOSED", reason); break;
       case "publish": await commercial.publishOffer(v("id"), reason, v("published") === "true"); break;
       case "account": await commercial.registerReceivingAccount({ label: v("label"), method: v("method"), accountIdentifier: v("accountIdentifier"), instructions: v("instructions"), approval: reason }); break;
-      case "offer": await commercial.createOffer({ plan: v("plan"), interval: v("interval"), version: Number(v("version")), name: v("name"), amount: v("amount"), memberLimit: v("memberLimit") ? Number(v("memberLimit")) : null, projectLimit: v("projectLimit") ? Number(v("projectLimit")) : null, invitationsEnabled: v("invitationsEnabled") === "true", taxTreatment: v("taxTreatment"), features: Object.fromEntries(["clients", "projects", "tasks", "invoices", "dashboard"].map(f => [f, data.get(f) === "on"])) }); break;
+      case "offer": await commercial.createOffer({ plan: v("plan"), interval: v("interval"), version: Number(v("version")), name: v("name"), amount: v("amount"), memberLimit: v("memberLimit") ? Number(v("memberLimit")) : null, projectLimit: v("projectLimit") ? Number(v("projectLimit")) : null, invitationsEnabled: v("invitationsEnabled") === "true", taxTreatment: v("taxTreatment"), commercialPath: v("commercialPath") || "MANUAL", features: Object.fromEntries(["clients", "projects", "tasks", "invoices", "dashboard"].map(f => [f, data.get(f) === "on"])) }); break;
       default: return { error: "Unknown platform action." };
     }
     revalidatePath("/platform", "layout"); revalidatePath("/w", "layout");
