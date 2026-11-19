@@ -1,10 +1,19 @@
+import { initialStagingSetupRequired } from "@/server/staging/setup-authorization";
+import { StagingSetupAuthorization } from "./StagingSetupAuthorization";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { platformEntry } from "@/server/commercial/platform-auth";
 import { PlatformVerification } from "./PlatformVerification";
 export const dynamic = "force-dynamic";
 
-export default async function PlatformVerify() {
+export default async function PlatformVerify({ searchParams }: { searchParams?: Promise<{ setup?: string }> } = {}) {
+  if ((await searchParams)?.setup === "1") {
+    const { stagingSetupEntry } = await import("@/server/staging/setup-authorization");
+    const entry = await stagingSetupEntry();
+    if (!entry) redirect("/platform/access-denied");
+    return <main className="mx-auto max-w-2xl space-y-6 px-6 py-16 text-core-text"><StagingSetupAuthorization/><Link className="text-core-accent underline" href="/platform/verify">Return to administrator verification</Link></main>;
+  }
+  if (await initialStagingSetupRequired()) redirect("/platform/verify?setup=1");
   const entry = await platformEntry();
   if (!entry.signedIn) redirect("/platform/sign-in");
   if (!entry.admin || (!entry.mfa && !entry.canReverify)) redirect("/platform/access-denied");

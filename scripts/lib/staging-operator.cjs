@@ -10,6 +10,8 @@ async function reviewedOperatorTarget(){
  if(!response.ok)throw Error('PROJECT_VERIFICATION_REQUIRED');
  const d=await response.json(),branch=d.meta?.githubCommitRef??d.gitSource?.ref;
  if((d.projectId??d.project?.id)!==candidate.projectId||!['preview',null].includes(d.target)||d.customEnvironment||d.readyState!=='READY'||branch!==process.env.COREOPS_STAGING_BRANCH)throw Error('PROJECT_SCOPE_MISMATCH');
- return candidate;
+ const revision=d.meta?.githubCommitSha??d.gitSource?.sha??d.gitMetadata?.commitSha;
+ if(!/^[a-f0-9]{40}$/.test(revision||""))throw Error("DEPLOYMENT_REVISION_REQUIRED");
+ return {...candidate,revision};
 }
 module.exports={reviewedOperatorTarget};

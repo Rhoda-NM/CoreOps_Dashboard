@@ -9,13 +9,16 @@ const {reviewedOperatorTarget}=require('./lib/staging-operator.cjs');
 const {approvedCatalog,pricingApproval}=require('../src/config/public-pricing.ts');
 const {TARGET,verifyMfa,sha}=require('./lib/staging-mfa.cjs');
 const {prisma}=require('../src/server/db/prisma.ts');
+const {prepare,consume}=require('./lib/staging-handoff-files.cjs');
+const {setupManifestSchema}=require('../src/server/staging/setup-handoff.ts');
+const {spawnSync}=require('node:child_process');
 function protectedRead(file){const s=fs.lstatSync(file);if(!s.isFile()||s.isSymbolicLink()||(s.mode&0o077))throw Error('PROTECTED_INPUT_REQUIRED');return fs.readFileSync(file);}
 async function main(){
- let phase='INPUT';
+ let phase='INPUT',setupCommitted=false;
  try{
   const args=process.argv.slice(2),apply=args.includes('--apply');
   const get=key=>{const i=args.indexOf(key);return i<0?null:args[i+1];};
-  if(args.some(value=>value.startsWith('--')&&!['--manifest','--session-token-file','--report','--apply'].includes(value)))throw Error('ARGUMENTS');
+  if(args.some(value=>value.startsWith('--')&&!['--manifest','--report','--apply','--prepare-authorization','--authorization-request','--authorization-file','--authorization-directory','--wait'].includes(value)))throw Error('ARGUMENTS');
   const report=get('--report');if(!report||fs.existsSync(report)||(fs.statSync(path.dirname(path.resolve(report))).mode&0o077))throw Error('PROTECTED_REPORT_REQUIRED');
   const manifest=JSON.parse(protectedRead(get('--manifest'))),target=await reviewedOperatorTarget();
   if(['syntheticTaxApprovalReference','backupReference','targetSeparationEvidence','syntheticDataEvidenceReference'].some(k=>typeof manifest[k]!=='string'||manifest[k].trim().length<10)||manifest.stagingId!==target.id||manifest.pricingApproval!==pricingApproval.reference||manifest.syntheticTaxStatus!=='NOT_REGISTERED'||!manifest.syntheticTaxApprovalReference||!manifest.backupReference||!manifest.targetSeparationEvidence||manifest.clerkUserId!==TARGET)throw Error('REVIEWED_MANIFEST_REQUIRED');
@@ -24,29 +27,44 @@ async function main(){
    await tx.$executeRaw`SET TRANSACTION READ ONLY`;
    const current=await tx.stagingEnvironment.findUnique({where:{id:target.id}});
    if(current&&(!current.active||['projectId','origin','databaseHost','databaseName','clerkHost'].some(k=>current[k]!==target[k])))throw Error('TARGET_MISMATCH');
-   const admin=await tx.platformAdmin.findFirst({where:{active:true,role:'SUPER_ADMIN',user:{externalId:TARGET}}});
+   const admin=await tx.platformAdmin.findFirst({where:{active:true,role:'SUPER_ADMIN',user:{externalId:TARGET,platformSuspended:false}}});
    if(!admin)throw Error('EXISTING_SUPER_ADMIN_REQUIRED');
    const history=await tx.$queryRaw`SELECT migration_name FROM "_prisma_migrations" WHERE migration_name='20261112000500_staging_user_controls' AND finished_at IS NOT NULL AND rolled_back_at IS NULL`;
    if(history.length!==1)throw Error('MIGRATION_REQUIRED');
    return {adminId:admin.id,environmentExists:!!current,offerCount:await tx.subscriptionPlanOffer.count(),workspaceCount:await tx.workspace.count()};
+  }, {
+    maxWait: 15000,
+  timeout: 30000
   });
-  let proof;
+  if(get('--prepare-authorization')){
+   if(apply)throw Error('SEPARATE_PREPARATION_REQUIRED');
+   const handoff=prepare(get('--prepare-authorization'),manifest,target);
+   console.log('Request file (upload only this file): '+path.resolve(get('--prepare-authorization')));
+   console.log('Open '+target.origin+'/platform/verify?setup=1');
+   console.log('Compare request fingerprint: '+handoff.fingerprint);
+   console.log('Authorization filename: workflowconnect-staging-'+handoff.id+'.authorization.json');
+  }
+  let proof,handoff;
   if(apply){
    phase='STRICT_MFA';
    if(manifest.approved!==true||typeof manifest.approvalReference!=='string'||manifest.approvalReference.trim().length<10||!Number.isFinite(Date.parse(manifest.validUntil))||!Number.isFinite(Date.parse(manifest.validFrom))||Date.parse(manifest.validUntil)<=Date.now()||Date.parse(manifest.validFrom)>Date.now())throw Error('APPROVAL_REQUIRED');
-   const token=protectedRead(get('--session-token-file')).toString().trim();
+   setupManifestSchema.parse(manifest);
+   handoff=await consume(get('--authorization-request'),get('--authorization-file'),manifest,target,args.includes('--wait'),get('--authorization-directory'));
+   const token=handoff.token;
    const clerk=createClerkClient({secretKey:process.env.CLERK_SECRET_KEY,publishableKey:process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY});
    const state=await clerk.authenticateRequest(new Request(target.origin+'/platform',{headers:{Authorization:'Bearer '+token}}),{authorizedParties:[target.origin],acceptsToken:'session_token'});
    if(state.status!=='signed-in')throw Error('SESSION_REQUIRED');
    const auth=state.toAuth();
    proof=verifyMfa(auth,await clerk.users.getUser(TARGET),await clerk.sessions.getSession(auth.sessionId),{origin:target.origin,clerkHost:target.clerkHost,scopeId:target.id,validUntil:manifest.validUntil});
+   proof.proofExpiresAt=new Date(Math.min(Date.parse(proof.proofExpiresAt),handoff.expiresAt)).toISOString();
+   if(Date.parse(proof.proofExpiresAt)<=Date.now())throw Error('AUTHORITY_EXPIRED');
    phase='APPROVED_STAGING_SETUP';
    await prisma.$transaction(async tx=>{
     await tx.$executeRaw`LOCK TABLE "StagingEnvironment", "SubscriptionPlanOffer", "TaxConfiguration" IN SHARE ROW EXCLUSIVE MODE`;
     await tx.$queryRaw`SELECT id FROM "PlatformAdmin" WHERE id=${preflight.adminId} FOR UPDATE`;
     const admin=await tx.platformAdmin.findUniqueOrThrow({where:{id:preflight.adminId},include:{user:true}});
     const [{now}]=await tx.$queryRaw`SELECT clock_timestamp() AS now`;
-    if(!admin.active||admin.role!=='SUPER_ADMIN'||admin.user.externalId!==TARGET||new Date(proof.proofExpiresAt)<=now)throw Error('AUTHORITY_EXPIRED');
+    if(!admin.active||admin.role!=='SUPER_ADMIN'||admin.user.externalId!==TARGET||admin.user.platformSuspended||new Date(proof.proofExpiresAt)<=now)throw Error('AUTHORITY_EXPIRED');
     const environment=await tx.stagingEnvironment.upsert({where:{id:target.id},update:{},create:{id:target.id,projectId:target.projectId,origin:target.origin,databaseHost:target.databaseHost,databaseName:target.databaseName,clerkHost:target.clerkHost,approvalReference:manifest.approvalReference}});
     if(!environment.active||['projectId','origin','databaseHost','databaseName','clerkHost'].some(k=>environment[k]!==target[k]))throw Error('TARGET_CHANGED');
     let lastTax=await tx.taxConfiguration.findFirst({orderBy:{version:'desc'}});
@@ -61,12 +79,20 @@ async function main(){
      await tx.subscriptionPlanOffer.create({data:{...entry,version:(latest?.version??0)+1,pricingRelease:pricingApproval.release,stagingEnvironmentId:target.id,taxTreatment:'NON_VAT_REGISTERED',published:true,businessApprovedAt:now,businessApprovalRef:pricingApproval.reference,approvedById:admin.id}});
     }
     const priorEvent=await tx.platformAuditEvent.findFirst({where:{action:'STAGING_CATALOG_SETUP',resourceId:target.id,reason:manifest.approvalReference}});
-    if(!priorEvent)await tx.platformAuditEvent.create({data:{actorAdminId:admin.id,action:'STAGING_CATALOG_SETUP',resourceType:'StagingEnvironment',resourceId:target.id,reason:manifest.approvalReference,metadata:{pricingRelease:pricingApproval.release,pricingApproval:pricingApproval.reference,manifestHash:sha(JSON.stringify(manifest)),mfaPolicy:"strict_mfa",mfaProofExpiresAt:proof.proofExpiresAt,sessionEvidenceHash:proof.sessionEvidenceHash,syntheticTax:true,backupReference:manifest.backupReference,separationReference:manifest.targetSeparationEvidence,syntheticDataEvidenceReference:manifest.syntheticDataEvidenceReference}}});
-   });
+    if(!priorEvent)await tx.platformAuditEvent.create({data:{actorAdminId:admin.id,action:'STAGING_CATALOG_SETUP',resourceType:'StagingEnvironment',resourceId:target.id,reason:manifest.approvalReference,metadata:{pricingRelease:pricingApproval.release,pricingApproval:pricingApproval.reference,manifestHash:sha(JSON.stringify(manifest)),handoffId:handoff.handoffId,handoffRevision:handoff.reviewedRevision,handoffRequestHash:handoff.requestHash,mfaPolicy:"strict_mfa",mfaProofExpiresAt:proof.proofExpiresAt,sessionEvidenceHash:proof.sessionEvidenceHash,syntheticTax:true,backupReference:manifest.backupReference,separationReference:manifest.targetSeparationEvidence,syntheticDataEvidenceReference:manifest.syntheticDataEvidenceReference}}});
+    const [{completedAt}]=await tx.$queryRaw`SELECT clock_timestamp() AS "completedAt"`;
+    if(new Date(proof.proofExpiresAt)<=completedAt)throw Error('AUTHORITY_EXPIRED');
+   }, {maxWait:15000,timeout:30000});
+   setupCommitted=true;
   }
   const result={mode:apply?'APPLIED_REVIEWED_STAGING_SETUP':'READ_ONLY_DRY_RUN',...preflight,pricingRelease:pricingApproval.release,configuredOffers:approvedCatalog.length,merchantVerification:'REQUIRED_SEPARATELY',productionChanged:false};
   fs.writeFileSync(report,JSON.stringify(result,null,2)+'\n',{mode:0o600,flag:'wx'});
   console.log('STAGING_SETUP_REPORT_WRITTEN');
- }catch{console.error(JSON.stringify({event:'STAGING_SETUP_FAILED',phase}));process.exitCode=1;}finally{await prisma.$disconnect();}
+  if(apply){
+   phase='POST_SETUP_READINESS';
+   const readiness=spawnSync(process.execPath,[path.resolve(__dirname,'staging-readiness.cjs')],{env:process.env,stdio:'inherit'});
+   if(readiness.status!==0){console.error('STAGING_SETUP_COMMITTED_READINESS_INCOMPLETE');process.exitCode=1;}
+  }
+ }catch{console.error(JSON.stringify({event:'STAGING_SETUP_FAILED',phase,setupCommitted}));process.exitCode=1;}finally{await prisma.$disconnect();}
 }
 main();

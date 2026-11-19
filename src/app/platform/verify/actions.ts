@@ -10,3 +10,13 @@ export async function verifyPlatformSession() {
   if (!entry.mfa) return reverificationError("strict_mfa");
   return { status: "verified" as const };
 }
+
+// No setup mutation occurs in the browser. The existing external CLI remains
+// responsible for reviewed target validation and the audited transaction.
+export async function authorizeStagingSetup(request: string) {
+  try {
+    if (typeof request !== "string" || request.length > 20000) return { status: "denied" as const };
+    const { authorizeSetupRequest } = await import("@/server/staging/setup-authorization");
+    return await authorizeSetupRequest(JSON.parse(request));
+  } catch { return { status: "denied" as const }; }
+}

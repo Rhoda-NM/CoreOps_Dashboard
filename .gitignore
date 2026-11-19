@@ -44,3 +44,9 @@ next-env.d.ts
 
 # Protected local database archives; never commit customer identities.
 /.backups/
+
+# Short-lived staging authorization artifacts are never source files.
+*.request.json
+*.authorization.json
+*.private.json
+*.private.json.used

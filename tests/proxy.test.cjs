@@ -128,3 +128,13 @@ test('exact public brochure reads are identity-provider independent but action p
  const before=clerkCalls;assert.equal((await request('http://localhost:3000/pricing')).status,200);assert.equal(clerkCalls,before);
  await request('http://localhost:3000/pricing',undefined,{'next-action':'forged'},'POST');assert.ok(clerkCalls>before);
 }));
+
+test('setup continuation preserves only the fixed verification mode and never redirects action POSTs',()=>inMode('path',async()=>{
+ const signedOut=async()=>({userId:null});
+ const setup=await request('http://localhost:3000/platform/verify?setup=1&returnTo=https://evil.test',signedOut);
+ assert.equal(setup.headers.get('location'),'http://localhost:3000/platform/sign-in?setup=1');
+ const ordinary=await request('http://localhost:3000/platform/verify?setup=other',signedOut);
+ assert.equal(ordinary.headers.get('location'),'http://localhost:3000/platform/sign-in');
+ const post=await request('http://localhost:3000/platform/verify?setup=1',signedOut,{'next-action':'synthetic-action'},'POST');
+ assert.equal(post.status,401);assert.equal(post.headers.get('location'),null);
+}));

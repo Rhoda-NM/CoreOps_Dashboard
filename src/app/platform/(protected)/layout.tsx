@@ -1,3 +1,4 @@
+import { initialStagingSetupRequired } from "@/server/staging/setup-authorization";
 import { stagingRequested } from "@/server/staging/config";
 import { PlatformShell, type PlatformLink } from "@/components/platform/PlatformShell";
 import { marketRehearsalAvailable } from "@/server/market/config";
@@ -7,6 +8,7 @@ import { redirect } from "next/navigation";
 import { requirePlatform, platformCan, platformEntry } from "@/server/commercial/platform-auth";
 export const dynamic = "force-dynamic";
 export default async function PlatformLayout({ children }: { children: React.ReactNode }) {
+  if (await initialStagingSetupRequired()) redirect("/platform/verify?setup=1");
   const entry = await platformEntry();
   if (!entry.signedIn) redirect("/platform/sign-in");
   if (!entry.admin) redirect("/platform/access-denied");

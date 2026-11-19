@@ -48,7 +48,7 @@ export default async function proxy(request: NextRequest, event: NextFetchEvent)
     if (/^\/platform(\/|$)/.test(request.nextUrl.pathname) && !(await auth()).userId) {
       // Never redirect POST/actions across hosts (or turn mutations into GETs).
       if (!["GET", "HEAD"].includes(request.method)) return new NextResponse("Unauthorized", { status: 401 });
-      return NextResponse.redirect(centralUrl(policy, "/platform/sign-in"));
+      return NextResponse.redirect(centralUrl(policy, request.nextUrl.pathname === "/platform/verify" && request.nextUrl.searchParams.get("setup") === "1" ? "/platform/sign-in?setup=1" : "/platform/sign-in"));
     }
     // Existence is already checked before Clerk, and is rechecked by the
     // resource resolver. That resolver still verifies Clerk's

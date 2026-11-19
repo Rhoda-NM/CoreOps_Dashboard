@@ -118,16 +118,7 @@ node --env-file=/secure/staging-operator.env scripts/staging-setup.cjs \
   --manifest /secure/staging-setup-draft.json --report /secure/staging-dryrun.json
 ```
 
-7. After explicit approval of that concrete result, prepare a final approved manifest/window. Obtain a fresh ordinary session token for the existing administrator through the supported Clerk client and complete real strict MFA. Save it privately, never in chat, command arguments, Git or logs. Only then authorize:
-
-```bash
-node --env-file=/secure/staging-operator.env scripts/staging-setup.cjs \
-  --manifest /secure/staging-setup-approved.json \
-  --session-token-file /secure/admin-session.jwt \
-  --report /secure/staging-setup-result.json --apply
-```
-
-The tool cannot bootstrap a User/role/workspace. It checks the existing active SUPER_ADMIN, actual Clerk session/strict MFA and fresh proof, rechecks authority transactionally, serializes setup and records an atomic operator audit. It refuses conflicting existing configuration or offer snapshots. Repeating the same reviewed setup is designed to preserve existing rows/first audit, not create another catalog release. **The --apply/idempotency execution stage was not run in this task.**
+7. After explicit approval, use the [Clerk authenticator authorization handoff](/home/rmuya/rhoda-work/coreops_dashboard/docs/staging-mfa-setup.md). The current workflow uploads a public CLI request to `/platform/verify?setup=1`, uses the existing administrator and Clerk strict-MFA dialog, and downloads an encrypted one-use handoff consumed by the waiting command. **Do not manually extract or save a JWT.** The former `--session-token-file` option is retired. The external CLI retains the reviewed manifest, independent target checks and atomic setup audit; it runs read-only readiness automatically after commit.
 
 8. Deploy only the reviewed compatible revision to the approved Preview branch using its existing trusted deployment workflow. Do not push/promote a branch that auto-deploys Production. Configure COREOPS_STAGING_ENABLED and the stable identity once, COREOPS_PAY1_PREVIEW_ENABLED=false, matching test keys and disabled unreleased features. No admission ID or per-deployment SQL is needed. Existing accounts/admins remain.
 9. Through existing strict-MFA administration, verify/reuse the matching Paystack Test merchant configuration and channel/capability/settlement references; registration is repeatable and refuses unapproved inactive accounts. Configure only the **Test Mode** callback and webhook at the stable origin: `/payments/paystack/return` and `/api/payments/paystack/test/webhook`. Do not change Live endpoints. Confirm Vercel protection permits machine webhook delivery without a login/redirect; never put a protection-bypass secret in its URL.

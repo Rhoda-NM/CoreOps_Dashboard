@@ -1,3 +1,4 @@
+import { initialStagingSetupRequired } from "@/server/staging/setup-authorization";
 import { requireCentralHost } from "@/server/routing/request-context";
 import { workspaceContinuation } from "@/lib/routing/navigation";
 import { selectWorkspaceAction } from "@/features/workspaces/actions/select-workspace";
@@ -6,6 +7,7 @@ import { getActiveMemberships } from "@/server/auth/get-current-workspace";
 import { accountEntry } from "@/server/auth/account-entry";
 export default async function WorkspaceSelector() {
   await requireCentralHost();
+  if (await initialStagingSetupRequired()) redirect("/platform/verify?setup=1");
   const memberships = await accountEntry(getActiveMemberships);
   if (!memberships.length) redirect("/onboarding");
   if (memberships.length === 1) redirect(workspaceContinuation(memberships[0].workspace.slug!));

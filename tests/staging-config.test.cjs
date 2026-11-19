@@ -10,7 +10,7 @@ test('operator preflight verifies the real alias project and branch without spoo
  const old={...process.env},fetch=global.fetch;
  try{process.env={...baseline,VERCEL_TOKEN:'synthetic-read-token',COREOPS_STAGING_TEAM_ID:'team_Synthetic'};delete process.env.VERCEL;delete process.env.VERCEL_ENV;delete process.env.VERCEL_PROJECT_ID;delete process.env.VERCEL_GIT_COMMIT_REF;
  const {reviewedOperatorTarget}=require('../scripts/lib/staging-operator.cjs');
- let reply={id:'dpl_First',projectId:'prj_Reviewed',target:null,readyState:'READY',meta:{githubCommitRef:'main'},gitSource:{ref:'a'.repeat(40)}};
+ let reply={id:'dpl_First',projectId:'prj_Reviewed',target:null,readyState:'READY',meta:{githubCommitRef:'main',githubCommitSha:'a'.repeat(40)},gitSource:{ref:'a'.repeat(40)}};
  global.fetch=async(url,options)=>{assert.match(String(url),/trusted-staging.vercel.app/);assert.equal(options.redirect,'error');return Response.json(reply);};
  const first=await reviewedOperatorTarget();reply={...reply,id:'dpl_Next'};assert.deepEqual(await reviewedOperatorTarget(),first);assert.equal(process.env.VERCEL,undefined);
  reply={...reply,target:'production'};await assert.rejects(reviewedOperatorTarget());reply={...reply,target:null,meta:{githubCommitRef:'untrusted-pr'}};await assert.rejects(reviewedOperatorTarget());
