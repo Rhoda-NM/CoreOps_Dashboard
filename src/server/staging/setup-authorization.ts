@@ -16,15 +16,23 @@ export async function initialStagingSetupTarget() {
   return target;
 }
 export async function stagingSetupEntry() {
+  const denied = (code: "SETUP_SIGN_IN_REQUIRED" | "SETUP_ADMIN_IDENTITY_MISMATCH" | "SETUP_ADMIN_NOT_FOUND" | "SETUP_PROFILE_UNAVAILABLE" | "SETUP_MFA_NOT_ENROLLED" | "SETUP_SESSION_UNAVAILABLE") => {
+    if (process.env.VERCEL_ENV === "preview") {
+      try { console.info(JSON.stringify({ event: "STAGING_SETUP_AUTHORIZATION", code })); } catch { /* No raw fallback. */ }
+    }
+    return null;
+  };
   const target=await initialStagingSetupTarget();
   const session=await auth();
-  if(!session.userId || !session.sessionId) return null;
-  if(session.userId!==setupAdministrator) return null;
+  if(!session.userId || !session.sessionId) return denied("SETUP_SIGN_IN_REQUIRED");
+  if(session.userId!==setupAdministrator) return denied("SETUP_ADMIN_IDENTITY_MISMATCH");
   const admin=await prisma.platformAdmin.findFirst({where:{active:true,role:"SUPER_ADMIN",user:{externalId:session.userId,platformSuspended:false}}});
-  if(!admin) return null;
+  if(!admin) return denied("SETUP_ADMIN_NOT_FOUND");
   const client=await clerkClient();
   const [profile,live]=await Promise.all([currentUser(),client.sessions.getSession(session.sessionId)]);
-  if(!profile || profile.id!==session.userId || profile.banned || profile.locked || !profile.twoFactorEnabled || profile.primaryEmailAddress?.verification?.status!=="verified" || live.id!==session.sessionId || live.userId!==session.userId || live.status!=="active" || live.expireAt<=Date.now()) return null;
+  if(!profile || profile.id!==session.userId || profile.banned || profile.locked || profile.primaryEmailAddress?.verification?.status!=="verified") return denied("SETUP_PROFILE_UNAVAILABLE");
+  if(!profile.twoFactorEnabled) return denied("SETUP_MFA_NOT_ENROLLED");
+  if(live.id!==session.sessionId || live.userId!==session.userId || live.status!=="active" || live.expireAt<=Date.now()) return denied("SETUP_SESSION_UNAVAILABLE");
   const factors=session.sessionClaims?.fva;
   const mfa=Array.isArray(factors) && factors.length===2 && factors.every(age=>Number.isInteger(age)&&age>=0) && !!session.has({reverification:"strict_mfa"});
   return {session,target,admin,mfa};

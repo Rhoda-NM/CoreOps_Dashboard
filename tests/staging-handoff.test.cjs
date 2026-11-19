@@ -16,6 +16,11 @@ test('encrypted handoff is bound to the target, exact manifest, request key and 
  assert.throws(()=>validateRequest({...a.request,expiresAt:now+700000},target,now));
  assert.throws(()=>createRequest({...manifest,approved:false},target,now));
 });
+test('expired and changed-target requests fail closed with distinct safe reasons',()=>{
+ const fixture=createRequest(manifest,target,now);
+ assert.throws(()=>validateRequest(fixture.request,target,fixture.request.expiresAt),e=>e.code==='SETUP_REQUEST_EXPIRED');
+ assert.throws(()=>validateRequest(fixture.request,{...target,revision:'b'.repeat(40)},now),e=>e.code==='SETUP_TARGET_CHANGED');
+});
 test('operator private key is outside Git, permission-restricted, consumed exclusively and deleted even after failed decryption',async()=>{
  const directory=fs.mkdtempSync(path.join(os.tmpdir(),'workflowconnect-handoff-'));fs.chmodSync(directory,0o700);
  const old=process.env.COREOPS_STAGING_BRANCH;process.env.COREOPS_STAGING_BRANCH=target.branch;
@@ -45,6 +50,17 @@ Module._load=function(n,p,m){
  return originalLoad.call(this,n,p,m);
 };
 const {authorizeSetupRequest}=require('../src/server/staging/setup-authorization.ts');
+test('server action exposes only a closed expiry code and preserves strict-MFA reverification',async()=>{
+ const old=process.env.COREOPS_STAGING_BRANCH;process.env.COREOPS_STAGING_BRANCH=target.branch;
+ try{
+  production=false;wrongDatabase=false;signedIn=true;role='SUPER_ADMIN';active=true;enrolled=true;live=true;
+  const {authorizeStagingSetup}=require('../src/app/platform/verify/actions.ts');
+  const expired={...createRequest(manifest,handoffTarget(target)).request,createdAt:Date.now()-601000,expiresAt:Date.now()-1};
+  assert.deepEqual(await authorizeStagingSetup(JSON.stringify(expired)),{status:'denied',code:'SETUP_REQUEST_EXPIRED'});
+  const fresh=createRequest(manifest,handoffTarget(target));
+  strict=false;fva=[12,12];assert.deepEqual(await authorizeStagingSetup(JSON.stringify(fresh.request)),{clerkReverification:'strict_mfa'});
+ }finally{if(old===undefined)delete process.env.COREOPS_STAGING_BRANCH;else process.env.COREOPS_STAGING_BRANCH=old;}
+});
 test('setup-only browser approval uses Clerk strict MFA and existing role; normal roles, missing factors and revoked sessions cannot obtain a token',async()=>{
  const old=process.env.COREOPS_STAGING_BRANCH;process.env.COREOPS_STAGING_BRANCH=target.branch;
  try{

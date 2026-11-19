@@ -24,8 +24,14 @@ export function handoffTarget(target: Pick<SetupTarget,"id"|"projectId"|"origin"
 }
 const requestSchema = z.object({ version:z.literal(1), purpose:z.literal("STAGING_SETUP"), id:z.string().uuid(), nonce:z.string().regex(/^[\w-]{43}$/), createdAt:z.number().int(), expiresAt:z.number().int(), target:targetSchema, manifest:setupManifestSchema, manifestHash:z.string().regex(/^[a-f0-9]{64}$/), publicKey:z.string().min(100).max(2048) }).strict();
 export type SetupRequest = z.infer<typeof requestSchema>;
+export class SetupRequestError extends Error {
+  constructor(readonly code: "SETUP_REQUEST_EXPIRED" | "SETUP_TARGET_CHANGED" | "SETUP_APPROVAL_EXPIRED") { super(code); }
+}
 export function validateRequest(value: unknown, target: SetupTarget, now=Date.now()) {
   const request=requestSchema.parse(value);
+  if (request.expiresAt<=now) throw new SetupRequestError("SETUP_REQUEST_EXPIRED");
+  if (canonical(request.target)!==canonical(target)) throw new SetupRequestError("SETUP_TARGET_CHANGED");
+  if (Date.parse(request.manifest.validUntil)<=now) throw new SetupRequestError("SETUP_APPROVAL_EXPIRED");
   if (canonical(request.target)!==canonical(target) || request.manifest.stagingId!==target.id || digest(canonical(request.manifest))!==request.manifestHash || request.createdAt>now+5000 || request.expiresAt<=now || request.expiresAt-request.createdAt>600000 || request.expiresAt<=request.createdAt || Date.parse(request.manifest.validFrom)>now || Date.parse(request.manifest.validUntil)<=now) throw Error("SETUP_REQUEST_INVALID");
   const key=createPublicKey(request.publicKey);
   if(key.asymmetricKeyType!=="rsa" || key.asymmetricKeyDetails?.modulusLength!==3072) throw Error("SETUP_KEY_INVALID");
