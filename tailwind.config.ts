@@ -37,18 +37,18 @@ const config: Config = {
           info: { DEFAULT: "var(--workspace-info)", surface: "var(--workspace-info-surface)" },
         },
         core: {
-          bg: "#0E2425",
-          surface: "#102C2C",
-          card: "#173434",
-          border: "#345550",
+          bg: "var(--core-bg, #0E2425)",
+          surface: "var(--core-surface, #102C2C)",
+          card: "var(--core-card, #173434)",
+          border: "var(--core-border, #345550)",
 
-          primary: "#147D70",
-          accent: "#8AE0C9",
-          "primary-hover": "#11675D",
+          primary: "var(--core-primary, #147D70)",
+          accent: "var(--core-accent, #8AE0C9)",
+          "primary-hover": "var(--core-primary-hover, #11675D)",
 
-          text: "#F4F8F5",
-          "text-secondary": "#B1C7C0",
-          muted: "#A1B7B1",
+          text: "var(--core-text, #F4F8F5)",
+          "text-secondary": "var(--core-text-secondary, #B1C7C0)",
+          muted: "var(--core-muted, #A1B7B1)",
         },
         brand: { deep: "#143D3B", accent: "#1FAE9A", warm: "#F7F8F5", ink: "#192B32", muted: "#52635F", line: "#DCE5DE" },
         landing: {

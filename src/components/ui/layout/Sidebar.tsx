@@ -29,7 +29,7 @@ export function Sidebar({ workspace, role }: SidebarProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden min-h-screen w-72 border-r border-core-border bg-core-surface/95 px-5 py-6 lg:block">
+    <aside className="workspace-navigation hidden min-h-screen w-72 border-r border-core-border bg-core-surface/95 px-5 py-6 lg:block">
       <Link href="/dashboard" className="mb-8 flex items-center gap-3">
         <div><Brand className="text-core-text"/><p className="mt-2 pl-[46px] text-[11px] text-core-text-secondary">Your business, connected.</p></div>
       </Link>

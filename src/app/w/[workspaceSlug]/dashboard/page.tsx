@@ -64,12 +64,12 @@ export default async function DashboardPage() {
         description="Your agency operations at a glance."
       />
 
-      <section className="rounded-3xl border border-core-border bg-gradient-to-br from-core-card to-core-surface p-6 shadow-2xl shadow-black/20">
+      <section className="rounded-xl border border-core-border bg-core-card p-5 shadow-sm">
         <Badge variant="default">Workspace overview</Badge>
 
-        <h1 className="mt-4 max-w-2xl text-3xl font-semibold tracking-tight text-core-text md:text-4xl">
+        <h2 className="mt-3 max-w-2xl text-lg font-semibold tracking-tight text-core-text">
           Your business pulse, updated from real operational data.
-        </h1>
+        </h2>
 
         <p className="mt-3 max-w-2xl text-sm leading-6 text-core-text-secondary">
           Track clients, projects, tasks, invoices, overdue work, and revenue
@@ -77,7 +77,7 @@ export default async function DashboardPage() {
         </p>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3">
         {metricCards.filter(metric => !(metrics.role === "STAFF" && metric.title === "Total Clients") && !(metrics.role !== "OWNER" && ["Revenue This Month", "Outstanding Invoices"].includes(metric.title))).map((metric) => {
           const Icon = metric.icon;
 
@@ -92,14 +92,14 @@ export default async function DashboardPage() {
                   : ""
               }
             >
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between gap-4">
+              <CardContent className="p-4 sm:p-5">
+                <div className="flex items-start justify-between gap-2 sm:gap-4">
                   <div>
                     <p className="text-sm text-core-text-secondary">
                       {metric.title}
                     </p>
 
-                    <h2 className="mt-3 text-3xl font-semibold tracking-tight text-core-text">
+                    <h2 className="mt-3 break-words text-2xl font-semibold tracking-tight text-core-text sm:text-3xl">
                       {metric.value}
                     </h2>
                   </div>
@@ -107,13 +107,13 @@ export default async function DashboardPage() {
                   <div
                     className={
                       metric.danger
-                        ? "flex h-11 w-11 items-center justify-center rounded-2xl bg-red-500/15 text-red-300"
+                        ? "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg sm:h-9 sm:w-9 bg-red-500/15 text-red-300"
                         : metric.warning
-                        ? "flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-300"
-                        : "flex h-11 w-11 items-center justify-center rounded-2xl bg-core-primary/15 text-core-accent"
+                        ? "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg sm:h-9 sm:w-9 bg-amber-500/15 text-amber-300"
+                        : "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg sm:h-9 sm:w-9 bg-core-primary/15 text-core-accent"
                     }
                   >
-                    <Icon className="h-5 w-5" />
+                    <Icon className="h-4 w-4" />
                   </div>
                 </div>
 

@@ -30,8 +30,9 @@ export default async function DashboardLayout({
   const dataHref = centralUrl(routing.policy, "/account/data");
   const accountHref = routing.policy.mode === "subdomain" ? centralUrl(routing.policy, "/account") : "/account";
   if (!access.read && path !== `${base}/subscription`) redirect(await workspaceNavigationPath("/subscription"));
-  if (!access.read) return <main className="mx-auto max-w-5xl space-y-6 p-6 text-core-text"><nav className="flex flex-wrap gap-6"><Link href={workspacesHref}>WorkflowConnect · Workspaces</Link><Link href={accountHref}>Account & security</Link>{dataAccessEnabled() && membership.role === "OWNER" && <Link href={dataHref}>Exports & recovery</Link>}</nav><p className="text-sm text-core-muted">{membership.workspace.name} · {membership.role}</p>{access.lifecycle?.state === "CANCELED" && <p role="status">This workspace is canceled. Normal workspace access is unavailable. Contact support for a recovery review. The calculated retention deadline is {access.lifecycle.retentionEndsAt?.toISOString()}; no deletion is enabled.</p>}{children}</main>;
+  if (!access.read) return <div className="workspace-theme min-h-screen"><main className="mx-auto max-w-5xl space-y-6 p-6 text-core-text"><nav className="flex flex-wrap gap-6"><Link href={workspacesHref}>WorkflowConnect · Workspaces</Link><Link href={accountHref}>Account & security</Link>{dataAccessEnabled() && membership.role === "OWNER" && <Link href={dataHref}>Exports & recovery</Link>}</nav><p className="text-sm text-core-muted">{membership.workspace.name} · {membership.role}</p>{access.lifecycle?.state === "CANCELED" && <p role="status">This workspace is canceled. Normal workspace access is unavailable. Contact support for a recovery review. The calculated retention deadline is {access.lifecycle.retentionEndsAt?.toISOString()}; no deletion is enabled.</p>}{children}</main></div>;
   return (
+    <div className="workspace-theme min-h-screen">
     <QuickAddProvider>
       <DashboardShell
         workspace={{
@@ -53,5 +54,6 @@ export default async function DashboardLayout({
 
       {access.write && membership.role !== "STAFF" && <QuickAddDialog role={membership.role} />}
     </QuickAddProvider>
+    </div>
   );
 }
