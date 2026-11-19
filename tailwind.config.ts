@@ -13,6 +13,29 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Opt-in workspace foundation. Legacy core/brand/landing stay unchanged.
+        // Values inherit only inside .workspace-theme; no global light override.
+        workspace: {
+          bg: "var(--workspace-bg)",
+          surface: "var(--workspace-surface)",
+          "surface-secondary": "var(--workspace-surface-secondary)",
+          brand: "var(--workspace-brand)",
+          "on-brand": "var(--workspace-on-brand)",
+          primary: "var(--workspace-primary)",
+          "primary-hover": "var(--workspace-primary-hover)",
+          "on-primary": "var(--workspace-on-primary)",
+          link: "var(--workspace-link)",
+          text: "var(--workspace-text)",
+          "text-secondary": "var(--workspace-text-secondary)",
+          border: "var(--workspace-border)",
+          "control-border": "var(--workspace-control-border)",
+          focus: "var(--workspace-focus)",
+          "focus-on-brand": "var(--workspace-focus-on-brand)",
+          success: { DEFAULT: "var(--workspace-success)", surface: "var(--workspace-success-surface)" },
+          warning: { DEFAULT: "var(--workspace-warning)", surface: "var(--workspace-warning-surface)" },
+          danger: { DEFAULT: "var(--workspace-danger)", surface: "var(--workspace-danger-surface)" },
+          info: { DEFAULT: "var(--workspace-info)", surface: "var(--workspace-info-surface)" },
+        },
         core: {
           bg: "#0E2425",
           surface: "#102C2C",

@@ -17,6 +17,9 @@ const {approvedCatalog,pricingApproval}=require('../src/config/public-pricing.ts
    const tax=await tx.taxConfiguration.findFirst({where:{effectiveFrom:{lte:new Date()}},orderBy:{effectiveFrom:'desc'}});
    const merchant=await tx.paymentReceivingAccount.findUnique({where:{method_accountIdentifier:{method:'PAYSTACK',accountIdentifier:`paystack:test:${gateway.merchantId}`}}});
    return {readOnly:true,persistentEnvironmentValidated:true,deploymentSpecificAdmissionRequired:false,catalogMatches,checkoutConfigured,approvedCatalogVersions:offers.length,syntheticNonVatScenario:!!tax?.synthetic&&tax.registrationStatus==='NOT_REGISTERED'&&tax.rate.isZero()&&tax.allowedTreatments.includes('NON_VAT_REGISTERED'),testMerchantRegistered:!!merchant?.active&&!!merchant.verifiedAt,activeSuperAdmins:await tx.platformAdmin.count({where:{active:true,role:'SUPER_ADMIN'}}),externalAcceptanceVerified:false};
-  });console.log(JSON.stringify(result,null,2));if(!result.checkoutConfigured||!result.catalogMatches||!result.syntheticNonVatScenario||!result.testMerchantRegistered||!result.activeSuperAdmins)process.exitCode=1;
+  }, {
+  maxWait: 15000,
+  timeout: 30000
+});console.log(JSON.stringify(result,null,2));if(!result.checkoutConfigured||!result.catalogMatches||!result.syntheticNonVatScenario||!result.testMerchantRegistered||!result.activeSuperAdmins)process.exitCode=1;
  }catch{console.error('STAGING_READINESS_FAILED: verify protected target, migration, catalog, tax and merchant configuration.');process.exitCode=1;}finally{await prisma.$disconnect();}
 })();
