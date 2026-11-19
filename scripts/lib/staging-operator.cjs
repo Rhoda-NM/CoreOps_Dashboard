@@ -8,8 +8,10 @@ async function reviewedOperatorTarget(){
  const candidate=stagingTarget({reviewedOperator:true});
  const response=await fetch(`https://api.vercel.com/v13/deployments/${encodeURIComponent(new URL(candidate.origin).host)}?teamId=${encodeURIComponent(process.env.COREOPS_STAGING_TEAM_ID)}`,{headers:{Authorization:'Bearer '+process.env.VERCEL_TOKEN},redirect:'error',signal:AbortSignal.timeout(8000)});
  if(!response.ok)throw Error('PROJECT_VERIFICATION_REQUIRED');
+ // REST's built-in 'staging' target is its explicit Preview deployment mode.
+ // Custom environments and Production remain rejected independently.
  const d=await response.json(),branch=d.meta?.githubCommitRef??d.gitSource?.ref;
- if((d.projectId??d.project?.id)!==candidate.projectId||!['preview',null].includes(d.target)||d.customEnvironment||d.readyState!=='READY'||branch!==process.env.COREOPS_STAGING_BRANCH)throw Error('PROJECT_SCOPE_MISMATCH');
+ if((d.projectId??d.project?.id)!==candidate.projectId||!['preview','staging',null].includes(d.target)||d.customEnvironment||d.readyState!=='READY'||branch!==process.env.COREOPS_STAGING_BRANCH)throw Error('PROJECT_SCOPE_MISMATCH');
  const revision=d.meta?.githubCommitSha??d.gitSource?.sha??d.gitMetadata?.commitSha;
  if(!/^[a-f0-9]{40}$/.test(revision||""))throw Error("DEPLOYMENT_REVISION_REQUIRED");
  return {...candidate,revision};

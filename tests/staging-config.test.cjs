@@ -14,6 +14,7 @@ test('operator preflight verifies the real alias project and branch without spoo
  global.fetch=async(url,options)=>{assert.match(String(url),/trusted-staging.vercel.app/);assert.equal(options.redirect,'error');return Response.json(reply);};
  const first=await reviewedOperatorTarget();reply={...reply,id:'dpl_Next'};assert.deepEqual(await reviewedOperatorTarget(),first);assert.equal(process.env.VERCEL,undefined);
  reply={...reply,target:'production'};await assert.rejects(reviewedOperatorTarget());reply={...reply,target:null,meta:{githubCommitRef:'untrusted-pr'}};await assert.rejects(reviewedOperatorTarget());
+ reply={...reply,target:'staging',meta:{githubCommitRef:'main',githubCommitSha:'a'.repeat(40)}};assert.deepEqual(await reviewedOperatorTarget(),first);
  delete process.env.VERCEL_TOKEN;await assert.rejects(reviewedOperatorTarget());
  }finally{process.env=old;global.fetch=fetch;}
 });
