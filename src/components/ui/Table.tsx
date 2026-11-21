@@ -1,10 +1,13 @@
 import { HTMLAttributes, ThHTMLAttributes, TdHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 
-export function Table({ className, ...props }: HTMLAttributes<HTMLTableElement>) {
+export function Table({ className, scrollLabel, ...props }: HTMLAttributes<HTMLTableElement> & { scrollLabel?: string }) {
   return (
-    <div className="w-full overflow-hidden rounded-xl border border-core-border">
-      <table className={cn("w-full border-collapse text-sm", className)} {...props} />
+    <div className="ui-table-frame">
+      {scrollLabel && <p className="ui-table-hint">Scroll horizontally if needed to view every column.</p>}
+      <div className="ui-table w-full overflow-hidden rounded-xl border border-core-border" role={scrollLabel ? "region" : undefined} aria-label={scrollLabel ? `${scrollLabel} table` : undefined} tabIndex={scrollLabel ? 0 : undefined}>
+        <table className={cn("w-full border-collapse text-sm", className)} {...props} />
+      </div>
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import Link from "@/components/workspaces/WorkspaceLink";
 import { canOpenCreation } from "@/features/creation/actions";
 import { getClients } from "@/server/services/clients.service";
 import { ClientForm } from "@/features/clients/components/ClientForm";
@@ -60,11 +61,11 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
         {clients.length === 0 ? (
           <EmptyState
             icon={<Users className="h-6 w-6" />}
-            title="No clients yet"
-            description="Add your first client to start managing your agency operations."
+            title={params.query || params.status ? "No matching clients" : "No clients yet"}
+            description={mayCreate ? "Use New Client to add a contact or business, or adjust your filters." : "Try adjusting your filters. Client records appear here when your workspace has them."}
           />
         ) : (
-          <Table>
+          <Table scrollLabel="Clients">
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
@@ -81,7 +82,7 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
                   href={`/clients/${client.id}`}
                 >
                   <TableCell className="font-medium text-core-text">
-                    {client.name}
+                    <Link href={`/clients/${client.id}`} className="font-medium text-core-text underline-offset-4 hover:underline">{client.name}</Link>
                   </TableCell>
                   <TableCell>{client.company || "—"}</TableCell>
                   <TableCell>{client.email || "—"}</TableCell>

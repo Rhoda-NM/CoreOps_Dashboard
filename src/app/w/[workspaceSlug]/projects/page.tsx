@@ -57,8 +57,8 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
       {projects.length === 0 ? (
         <EmptyState
           icon={<BriefcaseBusiness className="h-6 w-6" />}
-          title="No projects yet"
-          description="Use New Project to choose a client and start tracking work."
+          title={params.query || params.status ? "No matching projects" : "No projects yet"}
+          description={mayCreate ? "Use New Project to choose a client, or adjust your filters." : "Try adjusting your filters. Only projects available to your account are shown."}
         />
       ) : (
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

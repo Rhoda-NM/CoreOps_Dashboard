@@ -28,9 +28,10 @@ export function TaskFilters() {
 
   return (
     <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto_auto]">
-      <div className="flex w-full items-center gap-2 rounded-xl border border-core-border bg-core-surface px-3 py-2">
+      <div className="ui-search flex min-w-0 w-full items-center gap-2 rounded-xl border border-core-border bg-core-surface px-3 py-2">
         <Search className="h-4 w-4 text-core-muted" />
         <input
+          aria-label="Search tasks"
           defaultValue={currentQuery}
           placeholder="Search tasks, projects, or clients..."
           onChange={(event) => updateParams("query", event.target.value)}
@@ -38,7 +39,7 @@ export function TaskFilters() {
         />
       </div>
 
-      <select
+      <select aria-label="Task view"
         defaultValue={currentFilter}
         onChange={(event) => updateParams("filter", event.target.value)}
         className="rounded-xl border border-core-border bg-core-surface px-3 py-2 text-sm text-core-text outline-none focus:border-core-primary focus:ring-2 focus:ring-core-primary/30"
@@ -48,7 +49,7 @@ export function TaskFilters() {
         <option value="overdue">Overdue</option>
       </select>
 
-      <select
+      <select aria-label="Task status"
         defaultValue={currentStatus}
         onChange={(event) => updateParams("status", event.target.value)}
         className="rounded-xl border border-core-border bg-core-surface px-3 py-2 text-sm text-core-text outline-none focus:border-core-primary focus:ring-2 focus:ring-core-primary/30"
@@ -60,7 +61,7 @@ export function TaskFilters() {
         <option value="DONE">Done</option>
       </select>
 
-      <select
+      <select aria-label="Task priority"
         defaultValue={currentPriority}
         onChange={(event) => updateParams("priority", event.target.value)}
         className="rounded-xl border border-core-border bg-core-surface px-3 py-2 text-sm text-core-text outline-none focus:border-core-primary focus:ring-2 focus:ring-core-primary/30"

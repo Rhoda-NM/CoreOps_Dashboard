@@ -27,9 +27,10 @@ export function InvoiceFilters() {
 
   return (
     <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto]">
-      <div className="flex w-full items-center gap-2 rounded-xl border border-core-border bg-core-surface px-3 py-2">
+      <div className="ui-search flex min-w-0 w-full items-center gap-2 rounded-xl border border-core-border bg-core-surface px-3 py-2">
         <Search className="h-4 w-4 text-core-muted" />
         <input
+          aria-label="Search invoices"
           defaultValue={currentQuery}
           placeholder="Search invoices, clients, or projects..."
           onChange={(event) => updateParams("query", event.target.value)}
@@ -37,7 +38,7 @@ export function InvoiceFilters() {
         />
       </div>
 
-      <select
+      <select aria-label="Invoice view"
         defaultValue={currentFilter}
         onChange={(event) => updateParams("filter", event.target.value)}
         className="rounded-xl border border-core-border bg-core-surface px-3 py-2 text-sm text-core-text outline-none focus:border-core-primary focus:ring-2 focus:ring-core-primary/30"
@@ -47,7 +48,7 @@ export function InvoiceFilters() {
         <option value="overdue">Overdue</option>
       </select>
 
-      <select
+      <select aria-label="Invoice status"
         defaultValue={currentStatus}
         onChange={(event) => updateParams("status", event.target.value)}
         className="rounded-xl border border-core-border bg-core-surface px-3 py-2 text-sm text-core-text outline-none focus:border-core-primary focus:ring-2 focus:ring-core-primary/30"

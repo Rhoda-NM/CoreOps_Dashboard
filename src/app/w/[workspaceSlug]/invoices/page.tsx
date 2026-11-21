@@ -120,11 +120,11 @@ export default async function InvoicesPage({
       {invoices.length === 0 ? (
         <EmptyState
           icon={<Receipt className="h-6 w-6" />}
-          title="No invoices yet"
-          description="Invoices created inside client profiles will appear here."
+          title={params.query || params.status || params.filter ? "No matching invoices" : "No invoices yet"}
+          description={mayCreate ? "Use New Invoice to choose a client, or adjust your filters." : "Try adjusting your filters. Saved invoices appear here when they are available."}
         />
       ) : (
-        <Table>
+        <Table scrollLabel="Invoices">
           <TableHeader>
             <TableRow>
               <TableHead>Invoice</TableHead>

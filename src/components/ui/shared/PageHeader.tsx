@@ -12,7 +12,7 @@ export function PageHeader({
   action,
 }: PageHeaderProps) {
   return (
-    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div className="ui-page-header flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
       <div>
         <h1 className="text-3xl font-semibold tracking-tight text-core-text">
           {title}
@@ -25,7 +25,7 @@ export function PageHeader({
         )}
       </div>
 
-      {action && <div>{action}</div>}
+      {action && <div className="ui-page-actions">{action}</div>}
     </div>
   );
 }

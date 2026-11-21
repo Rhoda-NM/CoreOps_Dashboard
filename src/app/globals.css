@@ -308,3 +308,76 @@ button, a, input, select, textarea, summary { -webkit-tap-highlight-color: trans
 .workspace-theme .invitation-secondary { border: 1px solid var(--workspace-control-border); background: var(--workspace-surface); }
 .workspace-theme .invitation-card :is(button,a):focus-visible { outline: 3px solid var(--workspace-focus); outline-offset: 3px; }
 @media (min-width: 768px) { .workspace-theme .invitation-page { padding-top: 64px; } }
+
+/* Phase 4C: opt-in shared presentation. Legacy component styles remain outside
+   workspace-theme, including marketing, Clerk sign-in and platform surfaces. */
+.workspace-theme .workspace-content { overflow-wrap: anywhere; }
+.workspace-theme :is(.ui-field,.ui-card,.ui-card-content,.ui-card-header,.ui-table-frame,.ui-page-header,.ui-page-header > div,.ui-empty-state) { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.workspace-theme .ui-field { grid-template-columns: minmax(0, 1fr); }
+.workspace-theme :is(.ui-input,.creation-field input,.creation-field select,.creation-field textarea) { min-width: 0; max-width: 100%; }
+.workspace-theme .ui-button { min-height: 44px; max-width: 100%; white-space: normal; text-align: center; }
+.workspace-theme .ui-button:focus-visible, .workspace-theme .ui-table:focus-visible { outline: 3px solid var(--workspace-focus); outline-offset: 3px; }
+.workspace-theme .ui-button:disabled { cursor: not-allowed; }
+.workspace-theme :is(.ui-input,.workspace-content input:not([type=checkbox]):not([type=radio]):not([type=hidden]),.workspace-content select,.private-account input:not([type=checkbox]):not([type=radio]):not([type=hidden])) { min-height: 44px; min-width: 0; max-width: 100%; font-size: 16px; }
+.workspace-theme .ui-search { min-height: 44px; padding-block: 0; }
+.workspace-theme .ui-search svg { flex-shrink: 0; }
+.workspace-theme .ui-search input { min-height: 42px; }
+.workspace-theme .ui-table-frame { width: 100%; }
+.workspace-theme .ui-table { max-width: 100%; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; }
+.workspace-theme .ui-table-hint { margin-bottom: 8px; font-size: 12px; color: var(--workspace-text-secondary); }
+.workspace-theme .ui-field-error { color: var(--workspace-danger); }
+.workspace-theme .ui-badge { max-width: 100%; overflow-wrap: anywhere; }
+.workspace-theme .ui-badge[data-variant=success] { color: var(--workspace-success); background: var(--workspace-success-surface); border-color: color-mix(in srgb,var(--workspace-success) 25%, transparent); }
+.workspace-theme .ui-badge[data-variant=warning] { color: var(--workspace-warning); background: var(--workspace-warning-surface); border-color: color-mix(in srgb,var(--workspace-warning) 25%, transparent); }
+.workspace-theme .ui-badge[data-variant=danger] { color: var(--workspace-danger); background: var(--workspace-danger-surface); border-color: color-mix(in srgb,var(--workspace-danger) 25%, transparent); }
+.workspace-theme .ui-badge[data-variant=info] { color: var(--workspace-info); background: var(--workspace-info-surface); border-color: color-mix(in srgb,var(--workspace-info) 25%, transparent); }
+.workspace-theme :is(.text-emerald-200,.text-emerald-400,.text-green-300,.text-green-400) { color: var(--workspace-success); }
+.workspace-theme :is(.text-amber-200,.text-amber-400,.text-yellow-300) { color: var(--workspace-warning); }
+.workspace-theme :is(.text-blue-200,.text-blue-400,.text-cyan-400) { color: var(--workspace-info); }
+.workspace-theme .ui-page-actions { flex-shrink: 0; }
+.workspace-theme .ui-empty-state { padding: 24px 16px; }
+.workspace-theme .ui-feedback { padding: 12px 14px; border-radius: 8px; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.workspace-theme .ui-feedback[data-tone=success] { background: var(--workspace-success-surface); color: var(--workspace-success); }
+.workspace-theme .ui-feedback[data-tone=danger] { background: var(--workspace-danger-surface); color: var(--workspace-danger); }
+.workspace-theme .ui-feedback[data-tone=info] { background: var(--workspace-info-surface); color: var(--workspace-info); }
+.workspace-theme .invitation-owner { min-width: 0; overflow-wrap: anywhere; }
+.workspace-theme .invitation-owner select { min-height: 44px; font-size: 16px; }
+.workspace-theme .invitation-owner .invitation-copy-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.workspace-theme .invitation-copy-row input { min-width: 0; flex: 1 1 180px; }
+.workspace-theme .private-account { min-height: 100dvh; padding: 32px 16px; overflow-wrap: anywhere; }
+.workspace-theme .private-account-inner { min-width: 0; max-width: 64rem; margin-inline: auto; }
+.workspace-theme .private-account-card { width: 100%; max-width: 42rem; margin-inline: auto; padding: clamp(20px,4vw,32px); background: var(--workspace-surface); border: 1px solid var(--workspace-border); border-radius: 16px; }
+.workspace-theme .private-account :is(h1,h2,p,form,section,div) { min-width: 0; }
+.workspace-theme .private-account h1 { line-height: 1.25; }
+.workspace-theme .private-account :is(button,a) { overflow-wrap: anywhere; }
+.workspace-theme .private-account form > button { min-height: 44px; }
+.workspace-theme .private-account input[type=checkbox] { width: 20px; height: 20px; margin-top: 2px; flex-shrink: 0; accent-color: var(--workspace-primary); }
+.workspace-theme .private-account :is(input,button,a):focus-visible { outline: 3px solid var(--workspace-focus); outline-offset: 3px; }
+.workspace-theme .private-account .account-actions > :is(a,button) { display: inline-flex; align-items: center; min-height: 44px; }
+.workspace-theme .activity-timeline-groups { gap: 24px; }
+.workspace-theme .activity-event { padding: 12px 14px; }
+.workspace-theme .activity-guide { padding: 16px; }
+.workspace-theme .activity-guide p { line-height: 1.65; }
+@media (min-width: 768px) {
+ .workspace-theme .ui-empty-state { padding: 32px; }
+ .workspace-theme .private-account { padding-block: 48px; }
+}
+@media (prefers-reduced-motion: reduce) {
+ .workspace-theme .invitation-owner .animate-spin { animation: none; }
+ .workspace-theme .activity-event { transition: none; }
+}
+.workspace-theme .ui-page-header { flex-wrap: wrap; }
+.workspace-theme .ui-commercial-form, .workspace-theme .ui-commercial-form fieldset { min-width: 0; max-width: 100%; }
+.workspace-theme .ui-commercial-form button { min-height: 44px; }
+.workspace-theme .private-account pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.workspace-theme .private-account-card > h1 { font-size: clamp(1.5rem,2.5vw,1.875rem); font-weight: 650; }
+.workspace-theme .private-account-card h2 { font-weight: 600; }
+.workspace-theme .private-account-card form > label { display: flex; gap: 12px; align-items: flex-start; line-height: 1.6; }
+.workspace-theme .ui-assignee-field { display: grid; grid-template-columns: minmax(0,1fr); gap: 6px; min-width: 0; max-width: 100%; flex: 1 1 220px; }
+.workspace-theme .ui-assignee-field select { width: 100%; margin-left: 0; }
+.workspace-theme .ui-team-visibility { display: flex; align-items: center; gap: 8px; min-height: 44px; max-width: 100%; }
+/* Keep genuinely wide data readable inside its scroll region on small screens. */
+.workspace-theme .ui-table > table { min-width: 640px; }
+.workspace-theme .ui-table th { white-space: nowrap; }
+.workspace-theme .ui-table td { overflow-wrap: normal; }
+.workspace-theme .ui-table td:first-child { min-width: 180px; overflow-wrap: anywhere; }

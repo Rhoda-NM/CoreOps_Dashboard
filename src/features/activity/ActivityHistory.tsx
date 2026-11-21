@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  Activity, ArrowRight, BriefcaseBusiness, Building2, CalendarDays,
+  Activity, BriefcaseBusiness, Building2, CalendarDays,
   CheckSquare, Clock3, FileText, History, Mail, ShieldCheck,
   UserRound, Users,
 } from "lucide-react";
@@ -120,16 +120,16 @@ export function ActivityHistory({ initialPage }: { initialPage: AuditActivityPag
             <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-core-primary/10 text-core-accent"><History aria-hidden="true" className="h-6 w-6" /></div>
             <h3 className="text-base font-semibold">No activity recorded yet</h3>
             <p className="mt-2 max-w-sm text-sm leading-6 text-core-text-secondary">Workspace updates, team changes, and new work will appear here as they happen.</p>
-          </div> : <div className="space-y-7 p-5 sm:p-6">{Array.from(groups.entries()).map(([day, group]) => <section key={day} aria-label={dateFormatter.format(group[0].createdAt)}>
-            <h3 className="mb-5 flex items-center gap-2 text-xs font-medium text-core-text-secondary"><CalendarDays aria-hidden="true" className="h-3.5 w-3.5 text-core-muted" />{dateFormatter.format(group[0].createdAt)}<span className="ml-1 rounded-md bg-core-surface px-1.5 py-0.5 text-[10px] text-core-muted">{group.length}</span></h3>
+          </div> : <div className="activity-timeline-groups grid p-4 sm:p-5">{Array.from(groups.entries()).map(([day, group]) => <section key={day} aria-label={dateFormatter.format(group[0].createdAt)}>
+            <h3 className="mb-3 flex items-center gap-2 text-xs font-medium text-core-text-secondary"><CalendarDays aria-hidden="true" className="h-3.5 w-3.5 text-core-muted" />{dateFormatter.format(group[0].createdAt)}<span className="ml-1 rounded-md bg-core-surface px-1.5 py-0.5 text-[10px] text-core-muted">{group.length}</span></h3>
             <ol className="space-y-0">{group.map((event, index) => {
               const resource = resources[event.resourceType] ?? { label: readableName(event.resourceType), icon: Activity, color: "bg-indigo-500/10 text-core-accent ring-indigo-500/20" };
               const presentation = eventLabels[event.action] ?? { title: readableName(event.action), description: "A change was recorded in this workspace." };
               const Icon = resource.icon;
-              return <li key={event.id} className="relative flex gap-3 pb-5 last:pb-0 sm:gap-4">
+              return <li key={event.id} className="relative flex gap-3 pb-4 last:pb-0 sm:gap-4">
                 {index < group.length - 1 && <div aria-hidden="true" className="absolute bottom-0 left-[19px] top-11 w-px bg-core-border" />}
                 <div className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ${resource.color}`}><Icon aria-hidden="true" className="h-4 w-4" /></div>
-                <article id={`activity-event-${event.id}`} tabIndex={-1} className="min-w-0 flex-1 rounded-xl border border-core-border/60 bg-core-surface/50 p-4 transition hover:border-core-border hover:bg-core-surface">
+                <article id={`activity-event-${event.id}`} tabIndex={-1} className="activity-event min-w-0 flex-1 rounded-xl border border-core-border/60 bg-core-surface/50 transition hover:border-core-border hover:bg-core-surface">
                   <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-start"><h4 className="text-sm font-medium text-core-text">{presentation.title}</h4><time dateTime={event.createdAt.toISOString()} title={`${dateFormatter.format(event.createdAt)}, ${timeFormatter.format(event.createdAt)} EAT`} className="shrink-0 text-xs tabular-nums text-core-muted">{timeFormatter.format(event.createdAt)}</time></div>
                   <p className="mt-1.5 text-xs leading-5 text-core-text-secondary">{presentation.description}</p>
                   <span className="mt-3 inline-flex rounded-md border border-core-border/70 px-2 py-0.5 text-[10px] font-medium text-core-text-secondary">{resource.label}</span>
@@ -146,14 +146,13 @@ export function ActivityHistory({ initialPage }: { initialPage: AuditActivityPag
           <div className="flex items-start gap-2 border-t border-core-border px-5 py-3 text-[11px] leading-5 text-core-muted sm:px-6"><Clock3 aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" /><p>Times shown in East Africa Time (UTC+3).</p></div>
         </section>
 
-        <aside className="space-y-4">
-          <section className="rounded-2xl border border-core-border bg-core-card p-5">
-            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-core-primary/10 text-core-accent"><ShieldCheck aria-hidden="true" className="h-4 w-4" /></div>
-            <h2 className="text-sm font-semibold">Your workspace history</h2>
-            <p className="mt-2 text-xs leading-6 text-core-text-secondary">Review important changes to your team, clients, projects, tasks, and invoices in one place.</p>
-            <div className="mt-4 space-y-3 border-t border-core-border pt-4">{["Scoped to this workspace", "Available to workspace owners", "Older events load on request"].map(text => <p key={text} className="flex items-center gap-2 text-xs text-core-text-secondary"><ArrowRight aria-hidden="true" className="h-3 w-3 shrink-0 text-core-accent" />{text}</p>)}</div>
+        <aside className="space-y-3">
+          <section className="activity-guide rounded-xl border border-core-border bg-core-card">
+            <h2 className="text-sm font-semibold">About this history</h2>
+            <p className="mt-2 text-xs text-core-text-secondary">Recorded changes for this workspace, available to its owners. The summary counts only the events currently shown.</p>
+            <p className="mt-2 text-xs text-core-text-secondary">Load older events below the timeline. Reload the page for new activity.</p>
+            {events[0] && <p className="mt-3 border-t border-core-border pt-3 text-xs text-core-muted">Latest shown: <time dateTime={events[0].createdAt.toISOString()}>{dateFormatter.format(events[0].createdAt)}, {timeFormatter.format(events[0].createdAt)} EAT</time></p>}
           </section>
-          {events[0] && <section className="rounded-2xl border border-core-border bg-core-surface/50 p-5"><p className="flex items-center gap-2 text-xs font-medium text-core-text-secondary"><Clock3 aria-hidden="true" className="h-3.5 w-3.5" />Latest recorded change</p><p className="mt-3 text-sm font-medium">{dateFormatter.format(events[0].createdAt)}</p><p className="mt-1 text-xs text-core-muted">{timeFormatter.format(events[0].createdAt)} EAT</p><p className="mt-4 border-t border-core-border pt-3 text-xs leading-5 text-core-muted">Reload this page to see newly recorded activity.</p></section>}
         </aside>
       </div>
     </main>

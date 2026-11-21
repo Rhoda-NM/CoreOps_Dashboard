@@ -11,10 +11,13 @@ export function Input({
   error,
   className,
   id,
+  "aria-describedby": describedBy,
+  "aria-invalid": invalid,
   ...props
 }: InputProps) {
+  const errorId = error && id ? `${id}-error` : undefined;
   return (
-    <div className="grid gap-2">
+    <div className="ui-field grid gap-2">
       {label && (
         <label
           htmlFor={id}
@@ -27,16 +30,18 @@ export function Input({
       <input
         id={id}
         className={cn(
-          "w-full rounded-lg border border-core-border bg-core-surface px-3 py-2 text-sm text-core-text placeholder:text-core-muted outline-none transition",
+          "ui-input w-full rounded-lg border border-core-border bg-core-surface px-3 py-2 text-sm text-core-text placeholder:text-core-muted outline-none transition",
           "focus:border-core-primary focus:ring-2 focus:ring-core-primary/30",
           error && "border-red-500 focus:ring-red-500/30",
           className
         )}
         {...props}
+        aria-invalid={error ? true : invalid}
+        aria-describedby={[describedBy, errorId].filter(Boolean).join(" ") || undefined}
       />
 
       {error && (
-        <p className="text-xs text-red-400">{error}</p>
+        <p id={errorId} className="ui-field-error text-xs text-red-400">{error}</p>
       )}
     </div>
   );

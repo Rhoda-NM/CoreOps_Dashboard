@@ -26,9 +26,10 @@ export function ClientFilters() {
 
   return (
     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <div className="flex w-full max-w-md items-center gap-2 rounded-xl border border-core-border bg-core-surface px-3 py-2">
+      <div className="ui-search flex min-w-0 w-full max-w-md items-center gap-2 rounded-xl border border-core-border bg-core-surface px-3 py-2">
         <Search className="h-4 w-4 text-core-muted" />
         <input
+          aria-label="Search clients"
           defaultValue={currentQuery}
           placeholder="Search clients..."
           onChange={(event) => updateParams("query", event.target.value)}
@@ -36,7 +37,7 @@ export function ClientFilters() {
         />
       </div>
 
-      <select
+      <select aria-label="Client status"
         defaultValue={currentStatus}
         onChange={(event) => updateParams("status", event.target.value)}
         className="rounded-xl border border-core-border bg-core-surface px-3 py-2 text-sm text-core-text outline-none focus:border-core-primary focus:ring-2 focus:ring-core-primary/30"

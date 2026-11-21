@@ -222,7 +222,7 @@ export default async function ClientDetailsPage({
                                 description="Invoices for this client will appear here once created"
                             />
                         ) : (
-                            <Table>
+                            <Table scrollLabel="Client invoices">
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Invoice </TableHead>

@@ -24,9 +24,9 @@ export function Button({
   };
 
   return (
-    <button
+    <button data-variant={variant}
       className={cn(
-        "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition disabled:pointer-events-none disabled:opacity-50",
+        "ui-button inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition disabled:pointer-events-none disabled:opacity-50",
         variants[variant],
         className
       )}

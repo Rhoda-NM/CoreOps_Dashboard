@@ -209,10 +209,10 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
         <EmptyState
           icon={<CheckSquare className="h-6 w-6" />}
           title="No tasks found"
-          description="Try adjusting your filters or use New Task to choose a project."
+          description={mayCreate ? "Try adjusting your filters or use New Task to choose a project." : "Try adjusting your filters. Only work available to your account is shown."}
         />
       ) : (
-        <Table>
+        <Table scrollLabel="Tasks">
           <TableHeader>
             <TableRow>
               <TableHead>Task</TableHead>

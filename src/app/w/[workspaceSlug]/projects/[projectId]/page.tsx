@@ -186,7 +186,7 @@ export default async function ProjectDetailPage({
                 description="Create tasks for this project to start tracking execution."
               />
             ) : (
-              <Table>
+              <Table scrollLabel="Project tasks">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Task</TableHead>

@@ -16,7 +16,7 @@ export function CreationForm({ kind, clientId: contextClient, projectId: context
   const [notice, setNotice] = useState("");
   const trigger = useRef<HTMLButtonElement>(null);
   return <>
-    <button ref={trigger} type="button" className="rounded-lg bg-core-primary px-4 py-2 text-sm font-medium text-white hover:bg-core-primary-hover" onClick={() => setOpen(true)}>New {labels[kind]}</button>
+    <button ref={trigger} type="button" data-variant="primary" className="ui-button rounded-lg bg-core-primary px-4 py-2 text-sm font-medium text-white hover:bg-core-primary-hover" onClick={() => setOpen(true)}>New {labels[kind]}</button>
     {notice && <p role="status" className="mt-2 text-sm text-core-text-secondary">{notice}</p>}
     {open && <CreationPanel kind={kind} clientId={contextClient} projectId={contextProject} onClose={(message) => {
       setOpen(false); if (message) setNotice(message); requestAnimationFrame(() => trigger.current?.focus());
