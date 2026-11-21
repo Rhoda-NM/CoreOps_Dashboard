@@ -42,7 +42,7 @@ Module._load=function(name,parent,main){
   assert.equal(await color('.workspace-theme h1','color'),'rgb(25, 43, 50)');
   assert.equal(await color('#synthetic-field','backgroundColor'),'rgb(255, 255, 255)');
   assert.equal(await color('#synthetic-field','borderTopColor'),'rgb(122, 143, 134)');
-  assert.equal(await color('.workspace-theme .text-red-300','color'),'rgb(153, 27, 27)');
+  assert.equal(await color('.dashboard-priority.dashboard-tone-danger','color'),'rgb(153, 27, 27)');
   await page.locator('#synthetic-field').focus();await expect(page.locator('#synthetic-field')).toHaveCSS('outline-color','rgb(20, 125, 112)');
   assert.notEqual(await color('#synthetic-error','borderTopColor'),'rgb(122, 143, 134)');
   await page.locator('#synthetic-error').evaluate(el=>el.parentElement.remove());

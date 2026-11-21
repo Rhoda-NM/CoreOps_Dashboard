@@ -1,280 +1,59 @@
-import {
-  BriefcaseBusiness,
-  CheckSquare,
-  Receipt,
-  Users,
-  AlertTriangle,
-  ArrowUpRight,
-} from "lucide-react";
-
+import { AlertTriangle, ArrowUpRight, BriefcaseBusiness, CheckCircle2, CheckSquare, Receipt, Users } from "lucide-react";
+import Link from "@/components/workspaces/WorkspaceLink";
+import { QuickAddButton } from "@/features/quick-add/components/QuickAddButton";
 import { getDashboardMetrics } from "@/server/services/dashboard.service";
-import { formatKES } from "@/lib/format-currency";
-import { Card, CardContent } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
-import { PageHeader } from "@/components/ui/shared/PageHeader";
+import { can } from "@/server/authorization/permissions";
+import { formatDashboardCount as count, formatDashboardMoney as money, formatWorkCreated, recentDashboardWork } from "@/features/dashboard/presentation";
 
 export default async function DashboardPage() {
   const metrics = await getDashboardMetrics();
-
-  const metricCards = [
-    {
-      title: "Total Clients",
-      value: metrics.totalClients.toString(),
-      description: "Active business relationships",
-      icon: Users,
-    },
-    {
-      title: "Active Projects",
-      value: metrics.activeProjects.toString(),
-      description: "Projects currently in progress",
-      icon: BriefcaseBusiness,
-    },
-    {
-      title: "Pending Tasks",
-      value: metrics.pendingTasks.toString(),
-      description: "Tasks not yet completed",
-      icon: CheckSquare,
-    },
-    {
-      title: "Overdue Tasks",
-      value: metrics.overdueTasks.toString(),
-      description: "Tasks past due date",
-      icon: AlertTriangle,
-      danger: metrics.overdueTasks > 0,
-    },
-    {
-      title: "Revenue This Month",
-      value: formatKES(metrics.revenueThisMonth ?? 0),
-      description: "Paid invoices this month",
-      icon: Receipt,
-    },
-    {
-      title: "Outstanding Invoices",
-      value: formatKES(metrics.outstandingInvoices ?? 0),
-      description: "Unpaid invoice value",
-      icon: Receipt,
-      warning: (metrics.outstandingInvoices ?? 0) > 0,
-    },
+  const owner = metrics.role === "OWNER";
+  const recent = recentDashboardWork(metrics);
+  const cards = [
+    ...(metrics.role !== "STAFF" ? [{ key: "clients", title: "Total Clients", value: count(metrics.totalClients), description: metrics.totalClients ? "Active client records in this workspace." : "No active clients yet. Find client records from Clients.", icon: Users, tone: "neutral" }] : []),
+    { key: "projects", title: "Active Projects", value: count(metrics.activeProjects), description: metrics.activeProjects ? "Projects currently marked active." : "No active projects currently visible to you.", icon: BriefcaseBusiness, tone: "neutral" },
+    { key: "pending", title: "Pending Tasks", value: count(metrics.pendingTasks), description: metrics.pendingTasks ? "Open tasks, including overdue work." : "No pending tasks currently visible to you.", icon: CheckSquare, tone: "neutral" },
+    { key: "overdue", title: "Overdue Tasks", value: count(metrics.overdueTasks), description: metrics.overdueTasks ? "Past their due date and still open." : "No overdue tasks currently visible to you.", icon: metrics.overdueTasks > 0 ? AlertTriangle : CheckCircle2, tone: metrics.overdueTasks > 0 ? "danger" : "neutral" },
+    ...(owner ? [
+      { key: "paid", title: "Paid invoices · this month", value: money(metrics.revenueThisMonth), description: "Paid invoices created this month; not cash receipts.", icon: Receipt, tone: "neutral" },
+      { key: "unpaid", title: "Outstanding Invoices", value: money(metrics.outstandingInvoices), description: metrics.outstandingInvoices === 0 ? "No unpaid invoice value recorded, including drafts." : "Value not marked paid, including draft invoices.", icon: Receipt, tone: (metrics.outstandingInvoices ?? 0) > 0 ? "warning" : "neutral" },
+    ] : []),
   ];
+  const priorities = [
+    ...(metrics.overdueTasks > 0 ? [{ key: "overdue", title: `${count(metrics.overdueTasks)} overdue ${metrics.overdueTasks === 1 ? "task" : "tasks"}`, detail: "Past their recorded due date. Review the task list for next steps.", href: "/tasks", action: "Review overdue work", icon: AlertTriangle, tone: "danger" }] : []),
+    ...(metrics.pendingTasks > 0 ? [{ key: "pending", title: `${count(metrics.pendingTasks)} pending ${metrics.pendingTasks === 1 ? "task" : "tasks"}`, detail: "All tasks not marked done; this total includes overdue work.", href: "/tasks", action: "View pending work", icon: CheckSquare, tone: "neutral" }] : []),
+    ...(owner && (metrics.outstandingInvoices ?? 0) > 0 ? [{ key: "unpaid", title: `${money(metrics.outstandingInvoices)} in unpaid invoices`, detail: "Includes drafts. Review invoice status before following up; unpaid does not always mean overdue.", href: "/invoices", action: "Review invoices", icon: Receipt, tone: "warning" }] : []),
+  ];
+  return <div className="dashboard-overview">
+    <header className="dashboard-heading">
+      <div><p className="dashboard-eyebrow">Your operations</p><h1>Workspace overview</h1><p className="dashboard-intro">{metrics.role === "STAFF" ? "Your assigned projects and visible team tasks, in one place." : owner ? "Your workspace’s projects, tasks and invoice records at a glance." : "Your workspace’s clients, projects and tasks at a glance."}</p></div>
+      {metrics.canQuickAdd && metrics.role !== "STAFF" && <div className="dashboard-primary-action"><QuickAddButton /></div>}
+    </header>
 
-  return (
-    <main className="space-y-8">
-      <PageHeader
-        title="Dashboard"
-        description="Your agency operations at a glance."
-      />
+    <section aria-labelledby="dashboard-metrics-heading">
+      <h2 id="dashboard-metrics-heading" className="sr-only">Operational metrics</h2>
+      <dl className="dashboard-metrics">{cards.map(metric => <div key={metric.key} className={`dashboard-metric dashboard-tone-${metric.tone}`}>
+        <dt><span>{metric.title}</span><span className="dashboard-metric-icon"><metric.icon aria-hidden="true" size={18} /></span></dt>
+        <dd className="dashboard-metric-value">{metric.value}</dd><dd className="dashboard-metric-description">{metric.description}</dd>
+      </div>)}</dl>
+    </section>
 
-      <section className="rounded-xl border border-core-border bg-core-card p-5 shadow-sm">
-        <Badge variant="default">Workspace overview</Badge>
-
-        <h2 className="mt-3 max-w-2xl text-lg font-semibold tracking-tight text-core-text">
-          Your business pulse, updated from real operational data.
-        </h2>
-
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-core-text-secondary">
-          Track clients, projects, tasks, invoices, overdue work, and revenue
-          from one clean dashboard.
-        </p>
+    <div className="dashboard-panels">
+      <section className="dashboard-panel" aria-labelledby="dashboard-attention-heading">
+        <div className="dashboard-panel-heading"><div><h2 id="dashboard-attention-heading">Needs your attention</h2><p>Existing signals to help you decide what to review next.</p></div></div>
+        {priorities.length ? <ul className="dashboard-priorities">{priorities.map(item => <li key={item.key} className={`dashboard-priority dashboard-tone-${item.tone}`}>
+          <item.icon aria-hidden="true" size={19} /><div><h3>{item.title}</h3><p>{item.detail}</p><Link href={item.href}>{item.action}<ArrowUpRight aria-hidden="true" size={15} /></Link></div>
+        </li>)}</ul> : <div className="dashboard-empty"><CheckCircle2 aria-hidden="true" size={25} /><h3>No pending work to highlight</h3><p>Nothing overdue or pending is currently visible to you{owner ? ", and no unpaid invoice value is recorded" : ""}.</p><Link href="/tasks">View tasks<ArrowUpRight aria-hidden="true" size={15} /></Link></div>}
       </section>
 
-      <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3">
-        {metricCards.filter(metric => !(metrics.role === "STAFF" && metric.title === "Total Clients") && !(metrics.role !== "OWNER" && ["Revenue This Month", "Outstanding Invoices"].includes(metric.title))).map((metric) => {
-          const Icon = metric.icon;
-
-          return (
-            <Card
-              key={metric.title}
-              className={
-                metric.danger
-                  ? "border-red-500/40"
-                  : metric.warning
-                  ? "border-amber-500/40"
-                  : ""
-              }
-            >
-              <CardContent className="p-4 sm:p-5">
-                <div className="flex items-start justify-between gap-2 sm:gap-4">
-                  <div>
-                    <p className="text-sm text-core-text-secondary">
-                      {metric.title}
-                    </p>
-
-                    <h2 className="mt-3 break-words text-2xl font-semibold tracking-tight text-core-text sm:text-3xl">
-                      {metric.value}
-                    </h2>
-                  </div>
-
-                  <div
-                    className={
-                      metric.danger
-                        ? "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg sm:h-9 sm:w-9 bg-red-500/15 text-red-300"
-                        : metric.warning
-                        ? "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg sm:h-9 sm:w-9 bg-amber-500/15 text-amber-300"
-                        : "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg sm:h-9 sm:w-9 bg-core-primary/15 text-core-accent"
-                    }
-                  >
-                    <Icon className="h-4 w-4" />
-                  </div>
-                </div>
-
-                <p className="mt-4 text-xs text-core-muted">
-                  {metric.description}
-                </p>
-              </CardContent>
-            </Card>
-          );
-        })}
+      <section className="dashboard-panel" aria-labelledby="dashboard-recent-heading">
+        <div className="dashboard-panel-heading"><div><h2 id="dashboard-recent-heading">Recent work</h2><p>Most recently created {owner ? "projects, tasks and invoices" : "projects and tasks"}. Creation records, newest first.</p></div>{can(metrics.role, "audit:read") && <Link href="/activity" aria-label="View workspace audit activity">View activity<ArrowUpRight aria-hidden="true" size={15} /></Link>}</div>
+        {recent.length ? <ol className="dashboard-recent">{recent.map(item => {
+          const Icon = item.kind === "Project" ? BriefcaseBusiness : item.kind === "Task" ? CheckSquare : Receipt;
+          return <li key={item.key}><Link href={item.href} aria-label={`${item.kind}: ${item.title}`}><span className="dashboard-record-icon"><Icon aria-hidden="true" size={18} /></span><div className="dashboard-record-body"><div className="dashboard-record-meta"><span>{item.kind}{item.status ? ` · ${item.status}` : ""}</span><time dateTime={item.createdAt.toISOString()}>Created {formatWorkCreated(item.createdAt)}</time></div><h3 title={item.title}>{item.title}</h3><p title={item.context}>{item.context}</p></div><ArrowUpRight className="dashboard-record-arrow" aria-hidden="true" size={16} /></Link></li>;
+        })}</ol> : <div className="dashboard-empty"><BriefcaseBusiness aria-hidden="true" size={25} /><h3>No recent work yet</h3><p>{metrics.role === "STAFF" ? "Projects and tasks will appear here when they are visible through your assignments." : "Your latest project and task records will appear here as work is added."}</p><Link href="/projects">View projects<ArrowUpRight aria-hidden="true" size={15} /></Link></div>}
+        {recent.length > 0 && <p className="dashboard-panel-footnote">Latest five available records · Creation dates shown in East Africa Time (UTC+3).</p>}
       </section>
-
-      <section className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-core-text">
-                  Recent Activity
-                </h3>
-                <p className="mt-1 text-sm text-core-text-secondary">
-                  Recent projects, tasks, and invoices from your workspace.
-                </p>
-              </div>
-
-              <Badge variant="muted">Live data</Badge>
-            </div>
-
-            <div className="mt-6 space-y-4">
-              {metrics.recentProjects.length === 0 &&
-              metrics.recentTasks.length === 0 &&
-              metrics.recentInvoices.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-core-border p-8 text-center">
-                  <p className="text-sm font-medium text-core-text">
-                    No activity yet
-                  </p>
-                  <p className="mt-1 text-sm text-core-text-secondary">
-                    Add clients, projects, tasks, or invoices to build your
-                    operations timeline.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  {metrics.recentProjects.map((project) => (
-                    <div
-                      key={`project-${project.id}`}
-                      className="flex items-start justify-between rounded-2xl border border-core-border bg-core-surface p-4"
-                    >
-                      <div>
-                        <p className="text-sm font-medium text-core-text">
-                          New project: {project.name}
-                        </p>
-                        <p className="mt-1 text-xs text-core-text-secondary">
-                          Client: {project.client.name}
-                        </p>
-                      </div>
-
-                      <Badge variant="info">Project</Badge>
-                    </div>
-                  ))}
-
-                  {metrics.recentTasks.map((task) => (
-                    <div
-                      key={`task-${task.id}`}
-                      className="flex items-start justify-between rounded-2xl border border-core-border bg-core-surface p-4"
-                    >
-                      <div>
-                        <p className="text-sm font-medium text-core-text">
-                          Task added: {task.title}
-                        </p>
-                        <p className="mt-1 text-xs text-core-text-secondary">
-                          {task.project.client.name} / {task.project.name}
-                        </p>
-                      </div>
-
-                      <Badge variant="muted">Task</Badge>
-                    </div>
-                  ))}
-
-                  {metrics.recentInvoices.map((invoice) => (
-                    <div
-                      key={`invoice-${invoice.id}`}
-                      className="flex items-start justify-between rounded-2xl border border-core-border bg-core-surface p-4"
-                    >
-                      <div>
-                        <p className="text-sm font-medium text-core-text">
-                          Invoice created: {invoice.invoiceNo}
-                        </p>
-                        <p className="mt-1 text-xs text-core-text-secondary">
-                          {invoice.client.name} ·{" "}
-                          {formatKES(Number(invoice.amount))}
-                        </p>
-                      </div>
-
-                      <Badge
-                        variant={
-                          invoice.status === "PAID"
-                            ? "success"
-                            : invoice.status === "OVERDUE"
-                            ? "danger"
-                            : invoice.status === "SENT"
-                            ? "info"
-                            : "warning"
-                        }
-                      >
-                        {invoice.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <h3 className="font-semibold text-core-text">Today’s Focus</h3>
-            <p className="mt-1 text-sm text-core-text-secondary">
-              What needs attention right now.
-            </p>
-
-            <div className="mt-6 space-y-3">
-              <div className="rounded-2xl border border-core-border bg-core-surface p-4">
-                <p className="text-sm font-medium text-core-text">
-                  {metrics.overdueTasks > 0
-                    ? `${metrics.overdueTasks} overdue tasks`
-                    : "No overdue tasks"}
-                </p>
-                <p className="mt-1 text-xs text-core-text-secondary">
-                  {metrics.overdueTasks > 0
-                    ? "Review tasks that are past their due date."
-                    : "You’re clear for now."}
-                </p>
-              </div>
-
-              {metrics.role === "OWNER" && <div className="rounded-2xl border border-core-border bg-core-surface p-4">
-                <p className="text-sm font-medium text-core-text">
-                  {(metrics.outstandingInvoices ?? 0) > 0
-                    ? `${formatKES(metrics.outstandingInvoices ?? 0)} outstanding`
-                    : "No unpaid invoices"}
-                </p>
-                <p className="mt-1 text-xs text-core-text-secondary">
-                  {(metrics.outstandingInvoices ?? 0) > 0
-                    ? "Follow up on unpaid client invoices."
-                    : "Revenue tracking looks clean."}
-                </p>
-              </div>}
-
-              <div className="rounded-2xl border border-core-border bg-core-surface p-4">
-                <p className="text-sm font-medium text-core-text">
-                  {metrics.pendingTasks} pending tasks
-                </p>
-                <p className="mt-1 text-xs text-core-text-secondary">
-                  Tasks still moving through your execution pipeline.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-    </main>
-  );
+    </div>
+  </div>;
 }
