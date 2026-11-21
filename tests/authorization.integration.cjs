@@ -78,6 +78,57 @@ test('workspace authorization and tenant integrity', async t => {
     const invoiceA = await prisma.invoice.create({ data: { workspaceId: a.id, clientId: ca.id, invoiceNo: id(), amount: '9999', status: 'PAID' } });
     const invoiceB = await prisma.invoice.create({ data: { workspaceId: b.id, clientId: cb.id, invoiceNo: id(), amount: '8888' } });
 
+    await t.test('delivery checks allow owners/managers, isolate workspaces and reject staff even with a requested report', async () => {
+      const { getProjectDeliveryCheck: check } = require('../src/server/services/delivery.service.ts');
+      const fixed = () => new Date('2026-11-21T12:00:00Z');
+      const ownerReport = await run(owner, a, () => check(pa.id, fixed));
+      assert.deepEqual(new Set(ownerReport.findings.map(f => f.taskId)), new Set([shared.id, secret.id]));
+      assert.ok(ownerReport.findings.every(f => f.ruleId === 'TASK_UNASSIGNED' && f.href.startsWith(`/w/${a.slug}/projects/${pa.id}#task-`)));
+      const managerReport = await run(worker, b, () => check(pb.id, fixed));
+      assert.equal(managerReport.projectId, pb.id);
+      assert.deepEqual(managerReport.findings, []);
+      assert.equal(await run(owner, a, () => check(pb.id, fixed)), null);
+      assert.equal(await run(owner, a, () => check(id(), fixed)), null);
+      assert.equal(await run(worker, b, () => check(pa.id, fixed)), null);
+      await denied(run(worker, a, () => check(pa.id, fixed)));
+      await denied(run(outsider, a, () => check(pa.id, fixed)));
+      await denied(run(null, a, () => check(pa.id, fixed)));
+      assert.equal(JSON.stringify(ownerReport).includes('12345.67'), false);
+      assert.equal(JSON.stringify(ownerReport).includes(ca.email), false);
+      const Page = require('../src/app/w/[workspaceSlug]/projects/[projectId]/page.tsx').default;
+      for (const [actor, workspace, project, visible] of [[owner, a, pa, true], [worker, b, pb, true], [worker, a, pa, false]]) {
+        const page = await run(actor, workspace, () => Page({ params: Promise.resolve({ projectId: project.id }), searchParams: Promise.resolve({ deliveryCheck: '1' }) }));
+        const section = page.props.children.find(child => child?.props?.['aria-labelledby'] === 'delivery-check-heading');
+        assert.equal(Boolean(section), visible);
+      }
+    });
+    await t.test('delivery checks reject suspended membership, platform suspension and commercial denial', async () => {
+      const { getProjectDeliveryCheck: check } = require('../src/server/services/delivery.service.ts');
+      const { CommercialError } = require('../src/server/commercial/policy.ts');
+      try {
+        await prisma.workspaceMember.update({ where: { id: manager.id }, data: { status: 'SUSPENDED' } });
+        await denied(run(worker, b, () => check(pb.id)));
+        await prisma.workspaceMember.update({ where: { id: manager.id }, data: { status: 'ACTIVE' } });
+        await prisma.user.update({ where: { id: worker.id }, data: { platformSuspended: true } });
+        await denied(run(worker, b, () => check(pb.id)));
+        await prisma.user.update({ where: { id: worker.id }, data: { platformSuspended: false } });
+        await prisma.workspace.update({ where: { id: b.id }, data: { activationStatus: 'SUSPENDED' } });
+        await assert.rejects(run(worker, b, () => check(pb.id)), e => e instanceof CommercialError);
+        await prisma.workspace.update({ where: { id: b.id }, data: { activationStatus: 'ACTIVE' } });
+        for (const feature of ['projects', 'tasks']) {
+          const restricted = await prisma.workspace.create({ data: { name: 'Delivery feature denial fixture', slug: id() } });
+          extraWorkspaces.push(restricted.id);
+          commercialOffers.push(await paidWorkspace(prisma, restricted, owner, { [feature]: false }));
+          await prisma.workspaceMember.create({ data: { userId: owner.id, workspaceId: restricted.id, role: 'OWNER' } });
+          await assert.rejects(run(owner, restricted, () => check(id())), e => e instanceof CommercialError);
+        }
+      } finally {
+        await prisma.workspaceMember.update({ where: { id: manager.id }, data: { status: 'ACTIVE' } });
+        await prisma.user.update({ where: { id: worker.id }, data: { platformSuspended: false } });
+        await prisma.workspace.update({ where: { id: b.id }, data: { activationStatus: 'ACTIVE' } });
+      }
+    });
+
     await t.test('unauthenticated, nonmember, and missing workspace contexts are denied', async () => {
       await denied(run(null, a, getCurrentWorkspaceMembership));
       await denied(run(outsider, a, getCurrentWorkspaceMembership));
@@ -129,8 +180,8 @@ test('workspace authorization and tenant integrity', async t => {
       const managerData = await run(worker, b, async () => ({ client: await clients.getClientById(cb.id), project: await projects.getProjectById(pb.id), metrics: await getDashboardMetrics() }));
       assert.equal(JSON.stringify(managerData).includes(invoiceB.invoiceNo), false);
       for (const [actor, workspace, financialAllowed] of [[owner, a, true], [worker, a, false], [worker, b, false]]) {
-        const html = await run(actor, workspace, async () => renderToStaticMarkup(await DashboardPage()));
-        assert.equal(html.includes('Revenue This Month'), financialAllowed);
+        const html = await run(actor, workspace, async () => renderToStaticMarkup(require('react').createElement(require('../src/features/quick-add/components/QuickAddProvider.tsx').QuickAddProvider, null, await DashboardPage())));
+        assert.equal(html.includes('Paid invoices · this month'), financialAllowed);
         assert.equal(html.includes('Outstanding Invoices'), financialAllowed);
         assert.equal(html.includes(invoiceA.invoiceNo), financialAllowed);
       }

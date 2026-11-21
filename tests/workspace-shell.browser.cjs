@@ -68,6 +68,14 @@ const stubs={
   await page.goto(origin+'/w/synthetic/dashboard?empty=true');await page.setViewportSize({width:1280,height:800});await expect(page.locator('.workspace-user-details p')).toHaveText('synthetic@example.test');
   await page.setViewportSize({width:390,height:780});await start('OWNER',true);await open();
   const switchRequest=page.waitForRequest(r=>{const u=new URL(r.url());return u.pathname==='/dashboard/continue'&&u.searchParams.get('workspace')==='other'&&u.searchParams.get('path')==='/dashboard';});await drawer.getByLabel('Switch workspace').selectOption('other');await switchRequest;
+  // Quick Add routes to the verified list forms, with a fresh open intent even
+  // when a user is already on that destination. No placeholder micro-forms.
+  await page.setViewportSize({width:1440,height:900});
+  for(const [label,resource] of [['Create task','tasks'],['Create invoice','invoices'],['Add client','clients'],['New project','projects']]){
+   await start('OWNER');await page.keyboard.press('Control+k');await page.getByRole('option',{name:new RegExp(label)}).click();
+   const url=new URL(page.url());assert.equal(url.pathname,'/w/synthetic/'+resource);assert.ok(url.searchParams.get('create'));await expect(page.getByPlaceholder('Type a command or search...')).toBeHidden();
+  }
+  await start('MANAGER');await page.keyboard.press('Control+k');await expect(page.getByRole('option',{name:/Create invoice/})).toHaveCount(0);await page.keyboard.press('Control+k');
   console.log('PASS: real hydrated shell, all roles, nested active links, actual workspace-switch destination, desktop and 320/375/390/430px drawers, modal focus/inertness, Escape/backdrop/link closure, scroll restoration, resize closure, Quick Add click/shortcut coexistence, long names, staging banner and reduced motion. Offline synthetic fixture only.');
  }finally{if(browser)await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

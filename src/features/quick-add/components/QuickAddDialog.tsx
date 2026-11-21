@@ -1,4 +1,5 @@
 "use client";
+import { useEffect } from "react";
 import { useNavigation } from "@/components/workspaces/NavigationProvider";
 
 import { useRouter } from "next/navigation";
@@ -14,8 +15,8 @@ import {
 } from "lucide-react";
 
 import { useQuickAdd } from "./QuickAddProvider";
-import { QuickTaskForm } from "./QuickTaskForm";
-import { QuickInvoiceForm } from "./QuickInvoiceForm";
+
+
 
 export function QuickAddDialog({ role }: { role: "OWNER" | "MANAGER" }) {
   const router = useRouter();
@@ -24,10 +25,22 @@ export function QuickAddDialog({ role }: { role: "OWNER" | "MANAGER" }) {
     isOpen,
     activeView,
     closeQuickAdd,
-    setActiveView,
+
   } = useQuickAdd();
 
+  const destination = activeView === "client" ? "/clients" : activeView === "task" ? "/tasks" : activeView === "invoice" && role === "OWNER" ? "/invoices" : activeView === "search" ? "/clients" : null;
+  const target = destination ? workspace(destination) : null;
+  useEffect(() => {
+    if (isOpen && target) {
+      closeQuickAdd();
+      router.push(activeView === "search" ? target : `${target}?create=${crypto.randomUUID()}`);
+    }
+  }, [isOpen, target, activeView, closeQuickAdd, router]);
   if (!isOpen) return null;
+  const go = (path: string) => {
+    closeQuickAdd();
+    router.push(workspace(path.replace("?create=1", `?create=${crypto.randomUUID()}`)));
+  };
 
   return (
     <div
@@ -43,20 +56,21 @@ export function QuickAddDialog({ role }: { role: "OWNER" | "MANAGER" }) {
           <div>
             <p className="font-semibold text-core-text">Quick Add</p>
             <p className="text-xs text-core-text-secondary">
-              Create or find anything without leaving your current page.
+              Open a creation form in this workspace.
             </p>
           </div>
 
           <button
             type="button"
             onClick={closeQuickAdd}
+            aria-label="Close Quick Add"
             className="rounded-lg p-2 text-core-text-secondary transition hover:bg-core-surface hover:text-core-text"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        {activeView === "root" && (
+        {(
           <Command
             label="Quick actions"
             className="bg-core-card"
@@ -85,7 +99,7 @@ export function QuickAddDialog({ role }: { role: "OWNER" | "MANAGER" }) {
                   label="Create task"
                   keywords={["/task", "todo", "work"]}
                   shortcut="/task"
-                  onSelect={() => setActiveView("task")}
+                  onSelect={() => go("/tasks?create=1")}
                 />
 
                 {role === "OWNER" && <CommandItem
@@ -93,7 +107,7 @@ export function QuickAddDialog({ role }: { role: "OWNER" | "MANAGER" }) {
                   label="Create invoice"
                   keywords={["/invoice", "billing", "payment"]}
                   shortcut="/invoice"
-                  onSelect={() => setActiveView("invoice")}
+                  onSelect={() => go("/invoices?create=1")}
                 />}
 
                 <CommandItem
@@ -101,7 +115,7 @@ export function QuickAddDialog({ role }: { role: "OWNER" | "MANAGER" }) {
                   label="Add client"
                   keywords={["/client", "customer", "contact"]}
                   shortcut="/client"
-                  onSelect={() => setActiveView("client")}
+                  onSelect={() => go("/clients?create=1")}
                 />
               </Command.Group>
 
@@ -111,17 +125,17 @@ export function QuickAddDialog({ role }: { role: "OWNER" | "MANAGER" }) {
               >
                 <CommandItem
                   icon={Search}
-                  label="Find a client or project"
+                  label="Browse clients"
                   keywords={["search", "open", "go to"]}
-                  onSelect={() => setActiveView("search")}
+                  onSelect={() => go("/clients")}
                 />
 
                 <CommandItem
                   icon={BriefcaseBusiness}
-                  label="Open projects"
+                  label="New project"
                   keywords={["projects"]}
                   onSelect={() => {
-                    router.push(workspace(`/projects`));
+                    go("/projects?create=1");
                   }}
                 />
 
@@ -130,32 +144,12 @@ export function QuickAddDialog({ role }: { role: "OWNER" | "MANAGER" }) {
                   label="Open invoices"
                   keywords={["invoices", "billing"]}
                   onSelect={() => {
-                    router.push(workspace(`/invoices`));
+                    go("/invoices");
                   }}
                 />}
               </Command.Group>
             </Command.List>
           </Command>
-        )}
-
-        {activeView === "task" && (
-          <QuickTaskForm onBack={() => setActiveView("root")} />
-        )}
-
-        {role === "OWNER" && activeView === "invoice" && (
-          <QuickInvoiceForm clients={[]} onBack={() => setActiveView("root")} />
-        )}
-
-        {activeView === "client" && (
-          <div className="p-5">
-            Client micro-form goes here.
-          </div>
-        )}
-
-        {activeView === "search" && (
-          <div className="p-5">
-            Client and project search goes here.
-          </div>
         )}
 
         <div className="flex items-center justify-between border-t border-core-border px-5 py-3 text-[11px] text-core-muted">

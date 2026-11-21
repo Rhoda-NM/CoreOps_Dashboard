@@ -1,3 +1,5 @@
+import { CreateInvoiceForm } from "@/features/invoices/components/CreateInvoiceForm";
+import { canOpenCreation } from "@/features/creation/actions";
 import Link from "@/components/workspaces/WorkspaceLink";
 import { Receipt, Users, BriefcaseBusiness, CalendarDays, AlertTriangle } from "lucide-react";
 import { InvoiceFilters } from "@/features/invoices/components/InvoiceFilters";
@@ -18,6 +20,7 @@ import {
 
 type InvoicesPageProps = {
   searchParams: Promise<{
+    create?: string;
     query?: string;
     status?: string;
     filter?: string;
@@ -52,6 +55,7 @@ export default async function InvoicesPage({
   searchParams,
 }: InvoicesPageProps) {
   const params = await searchParams;
+  const mayCreate = await canOpenCreation("invoice");
 
   const status =
     params.status === "DRAFT" ||
@@ -84,6 +88,7 @@ export default async function InvoicesPage({
   return (
     <main className="space-y-8">
       <PageHeader
+        action={mayCreate ? <CreateInvoiceForm key={params.create || "closed"} initialOpen={!!params.create} /> : undefined}
         title="Invoices"
         description="Track billing, unpaid invoices, and agency revenue."
       />

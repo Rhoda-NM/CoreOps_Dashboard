@@ -1,4 +1,5 @@
 import "server-only";
+import { can } from "../authorization/permissions";
 import { z } from "zod";
 import { workspaceMutation, audit } from "../authorization/authorize";
 import { AccessError } from "../authorization/errors";
@@ -19,14 +20,21 @@ export async function setProjectMember(projectId: string, memberId: string, assi
 export async function assignTask(taskId: string, memberId: string | null, teamVisible: boolean) {
   z.boolean().parse(teamVisible);
   return workspaceMutation("tasks:assign", async (tx, actor) => {
-    const task = await tx.task.findFirst({ where: { id: taskId, workspaceId: actor.workspaceId } });
-    if (!task) throw new AccessError("NOT_FOUND");
-    if (memberId) {
-      const member = await tx.workspaceMember.findFirst({ where: { id: memberId, workspaceId: actor.workspaceId, status: "ACTIVE" } });
-      if (!member) throw new AccessError("NOT_FOUND");
-      if (member.role === "STAFF" && !await tx.projectMember.findUnique({ where: { projectId_memberId: { projectId: task.projectId, memberId } } })) throw new AccessError("CONFLICT");
-    }
-    await tx.task.update({ where: { id: taskId, workspaceId: actor.workspaceId }, data: { assignedMemberId: memberId, teamVisible } });
-    await audit(tx, actor, "TASK_ASSIGNMENT_CHANGED", "Task", taskId, { memberId, teamVisible });
+    await assignTaskInTransaction(tx, actor, taskId, memberId, teamVisible);
   });
+}
+
+// Shared by task creation so assignment failure rolls back the new task and audit.
+export async function assignTaskInTransaction(tx: import("@prisma/client").Prisma.TransactionClient, actor: { userId: string; workspaceId: string; role: "OWNER" | "MANAGER" | "STAFF" }, taskId: string, memberId: string | null, teamVisible: boolean) {
+  if (!can(actor.role, "tasks:assign")) throw new AccessError("FORBIDDEN");
+  z.boolean().parse(teamVisible);
+  const task = await tx.task.findFirst({ where: { id: taskId, workspaceId: actor.workspaceId } });
+  if (!task) throw new AccessError("NOT_FOUND");
+  if (memberId) {
+    const member = await tx.workspaceMember.findFirst({ where: { id: memberId, workspaceId: actor.workspaceId, status: "ACTIVE" } });
+    if (!member) throw new AccessError("NOT_FOUND");
+    if (member.role === "STAFF" && !await tx.projectMember.findUnique({ where: { projectId_memberId: { projectId: task.projectId, memberId } } })) throw new AccessError("CONFLICT");
+  }
+  await tx.task.update({ where: { id: taskId, workspaceId: actor.workspaceId }, data: { assignedMemberId: memberId, teamVisible } });
+  await audit(tx, actor, "TASK_ASSIGNMENT_CHANGED", "Task", taskId, { memberId, teamVisible });
 }

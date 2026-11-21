@@ -1,3 +1,5 @@
+import { CreateTaskForm } from "@/features/tasks/components/CreateTaskForm";
+import { canOpenCreation } from "@/features/creation/actions";
 import { getCurrentWorkspaceMembership } from "@/server/auth/get-current-workspace";
 {/*import Link from "@/components/workspaces/WorkspaceLink";
 import { CheckSquare, CalendarDays, BriefcaseBusiness, Users } from "lucide-react";
@@ -145,6 +147,7 @@ import {
 
 type TasksPageProps = {
   searchParams: Promise<{
+    create?: string;
     query?: string;
     status?: string;
     priority?: string;
@@ -160,6 +163,7 @@ function getPriorityVariant(priority: string) {
 
 export default async function TasksPage({ searchParams }: TasksPageProps) {
   const params = await searchParams;
+  const mayCreate = await canOpenCreation("task");
   const membership = await getCurrentWorkspaceMembership();
   const { role } = membership;
 
@@ -194,6 +198,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
   return (
     <main className="space-y-8">
       <PageHeader
+        action={mayCreate ? <CreateTaskForm key={params.create || "closed"} initialOpen={!!params.create} /> : undefined}
         title="Tasks"
         description="Track work across all clients and projects."
       />
@@ -204,7 +209,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
         <EmptyState
           icon={<CheckSquare className="h-6 w-6" />}
           title="No tasks found"
-          description="Try adjusting your filters or create tasks inside a project."
+          description="Try adjusting your filters or use New Task to choose a project."
         />
       ) : (
         <Table>

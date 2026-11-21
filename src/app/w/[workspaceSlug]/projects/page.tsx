@@ -1,3 +1,5 @@
+import { CreateProjectForm } from "@/features/projects/components/CreateProjectForm";
+import { canOpenCreation } from "@/features/creation/actions";
 import { getCurrentWorkspaceMembership } from "@/server/auth/get-current-workspace";
 import Link from "@/components/workspaces/WorkspaceLink";
 import {
@@ -18,6 +20,7 @@ import { ProjectStatusSelect } from "@/features/projects/components/ProjectStatu
 
 type ProjectsPageProps = {
   searchParams: Promise<{
+    create?: string;
     query?: string;
     status?: string;
   }>;
@@ -25,6 +28,7 @@ type ProjectsPageProps = {
 
 export default async function ProjectsPage({ searchParams }: ProjectsPageProps) {
   const params = await searchParams;
+  const mayCreate = await canOpenCreation("project");
   const { role } = await getCurrentWorkspaceMembership();
 
   const status =
@@ -43,6 +47,7 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
   return (
     <main className="space-y-8">
       <PageHeader
+        action={mayCreate ? <CreateProjectForm key={params.create || "closed"} initialOpen={!!params.create} /> : undefined}
         title="Projects"
         description="View and manage all agency projects across clients."
       />
@@ -53,7 +58,7 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
         <EmptyState
           icon={<BriefcaseBusiness className="h-6 w-6" />}
           title="No projects yet"
-          description="Create a project from a client profile to start tracking work."
+          description="Use New Project to choose a client and start tracking work."
         />
       ) : (
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

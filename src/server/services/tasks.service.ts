@@ -1,3 +1,4 @@
+import { assignTaskInTransaction } from "./assignments.service";
 import { workspaceMutation, audit } from "../authorization/authorize";
 import { getOperationalMembership } from "../auth/get-current-workspace";
 import { taskScope, taskWriteScope, projectSummary } from "../authorization/policies";
@@ -108,14 +109,15 @@ export async function getTasks(filters?: {
   });
 }
 
-export async function createTaskForProject(data: { projectId: string; title: string; description?: string; priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT"; dueDate?: string }) {
+export async function createTaskForProject(data: { projectId: string; title: string; description?: string; priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT"; dueDate?: string; assignedMemberId?: string }) {
   return workspaceMutation("tasks:create", async (tx, member) => {
     const project = await tx.project.findFirst({ where: { id: data.projectId, workspaceId: member.workspaceId } });
     if (!project) throw new AccessError("NOT_FOUND");
     const priority = z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).parse(data.priority);
     const task = await tx.task.create({ data: { title: data.title, description: data.description || null, priority, dueDate: data.dueDate ? new Date(data.dueDate) : null, projectId: project.id, workspaceId: member.workspaceId } });
     await audit(tx, member, "TASK_CREATED", "Task", task.id);
-    return task;
+    if (data.assignedMemberId) await assignTaskInTransaction(tx, member, task.id, data.assignedMemberId, false);
+    return data.assignedMemberId ? { ...task, assignedMemberId: data.assignedMemberId } : task;
   });
 }
 export async function updateTaskStatus(data: { taskId: string; status: "TODO" | "IN_PROGRESS" | "REVIEW" | "DONE" }) {

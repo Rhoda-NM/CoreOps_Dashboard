@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "test:authorization": "node --env-file=.env --test tests/authorization.integration.cjs tests/identity.integration.cjs tests/proxy.test.cjs",
+    "test:delivery": "node --test tests/delivery-evaluator.test.cjs",
     "test:status-controls": "node tests/status-controls.test.cjs",
     "predev": "prisma generate",
     "prebuild": "prisma generate",

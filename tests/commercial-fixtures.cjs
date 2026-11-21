@@ -1,8 +1,8 @@
 // Explicit paid test fixtures, never a production bypass of commercial checks.
 const { randomUUID, randomInt } = require('node:crypto');
-async function paidWorkspace(prisma, workspace, user) {
+async function paidWorkspace(prisma, workspace, user, featureOverrides = {}) {
   const admin = await prisma.platformAdmin.upsert({where:{userId:user.id},update:{},create:{userId:user.id,role:'SUPER_ADMIN'}});
-  const offer=await prisma.subscriptionPlanOffer.create({data:{id:`auth-offer-${randomUUID()}`,plan:'ENTERPRISE',interval:'ANNUAL',version:randomInt(1000,2000000000),name:'Authorization test contract',amount:'100',memberLimit:1000,invitationsEnabled:true,taxTreatment:'INCLUSIVE',features:{clients:true,projects:true,tasks:true,invoices:true,dashboard:true}}});
+  const offer=await prisma.subscriptionPlanOffer.create({data:{id:`auth-offer-${randomUUID()}`,plan:'ENTERPRISE',interval:'ANNUAL',version:randomInt(1000,2000000000),name:'Authorization test contract',amount:'100',memberLimit:1000,invitationsEnabled:true,taxTreatment:'INCLUSIVE',features:{clients:true,projects:true,tasks:true,invoices:true,dashboard:true,...featureOverrides}}});
   const sub=await prisma.subscription.create({data:{workspaceId:workspace.id,status:'ACTIVE',plan:'ENTERPRISE'}});
   const req=await prisma.subscriptionRequest.create({data:{workspaceId:workspace.id,subscriptionId:sub.id,submittedByUserId:user.id,offerId:offer.id,type:'INITIAL',status:'ACTIVATED',idempotencyKey:randomUUID(),payloadHash:'fixture',plan:'ENTERPRISE',interval:'ANNUAL',offerVersion:offer.version,catalogAmount:'100',currency:'KES',memberLimit:1000,invitationsEnabled:true,features:offer.features,taxTreatment:'INCLUSIVE'}});
   const start=new Date(), end=new Date(+start+365*86400000);

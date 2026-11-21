@@ -260,3 +260,36 @@ button, a, input, select, textarea, summary { -webkit-tap-highlight-color: trans
 .workspace-theme .dashboard-record-body h3, .workspace-theme .dashboard-record-body > p {
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
 }
+
+/* Phase 4A: viewport-constrained creation panels; no global overflow masking. */
+.workspace-theme .creation-dialog {
+  position: fixed; inset: 0; margin: auto; padding: 0;
+  width: min(42rem, calc(100vw - 2rem)); max-width: 100%;
+  max-height: calc(100dvh - 2rem); color: var(--workspace-text);
+  background: var(--workspace-surface); border: 1px solid var(--workspace-border);
+  border-radius: 1rem; box-shadow: 0 24px 80px #192b3233;
+}
+.workspace-theme .creation-dialog[open] { display: flex; flex-direction: column; }
+.workspace-theme .creation-dialog::backdrop { background: #192b3280; }
+.workspace-theme .creation-heading { flex: none; padding: 1.25rem; border-bottom: 1px solid var(--workspace-border); }
+.workspace-theme .creation-heading h2 { font-size: 1.4rem; font-weight: 650; }
+.workspace-theme .creation-heading p { margin-top: .35rem; font-size: .875rem; color: var(--workspace-text-secondary); }
+.workspace-theme .creation-form { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.workspace-theme .creation-content { padding: 1.25rem; overflow-y: auto; overscroll-behavior: contain; min-height: 0; min-width: 0; overflow-wrap: anywhere; }
+.workspace-theme .creation-content fieldset { min-width: 0; display: grid; gap: .9rem; }
+.workspace-theme .creation-content fieldset[hidden] { display: none; }
+.workspace-theme .creation-field { display: grid; gap: .3rem; min-width: 0; }
+.workspace-theme .creation-field label { font-size: .875rem; font-weight: 600; }
+.workspace-theme .creation-field :is(input,select,textarea) { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; padding: .65rem .75rem; font-size: 1rem; border: 1px solid var(--workspace-control-border); border-radius: .5rem; background: var(--workspace-surface); color: var(--workspace-text); }
+.workspace-theme .creation-field textarea { resize: vertical; }
+.workspace-theme .creation-dialog :is(input,select,textarea,button):focus-visible { outline: 2px solid var(--workspace-focus); outline-offset: 3px; }
+.workspace-theme .creation-footer { flex: none; display: flex; justify-content: flex-end; flex-wrap: wrap; gap: .75rem; padding: 1rem 1.25rem; border-top: 1px solid var(--workspace-border); background: var(--workspace-surface); padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+.workspace-theme .creation-footer button { min-height: 44px; }
+.workspace-theme .creation-note { margin-bottom: .75rem; padding: .75rem; background: var(--workspace-surface-secondary); border-radius: .5rem; }
+.workspace-theme .creation-error { margin-bottom: 1rem; color: #9f2525; }
+@media (max-width: 639px) {
+  .workspace-theme .creation-dialog { width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0; }
+  .workspace-theme .creation-form { flex: 1; }
+  .workspace-theme .creation-content { flex: 1; }
+  .workspace-theme .creation-footer button { flex: 1; }
+}

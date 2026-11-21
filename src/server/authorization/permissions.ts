@@ -8,6 +8,7 @@ export const permissions = {
   "clients:read": ["OWNER", "MANAGER"],
   "clients:create": ["OWNER", "MANAGER"],
   "clients:update": ["OWNER", "MANAGER"],
+  "projects:delivery-check": ["OWNER", "MANAGER"],
   "projects:create": ["OWNER", "MANAGER"],
   "projects:update": ["OWNER", "MANAGER"],
   "projects:delete": ["OWNER"],

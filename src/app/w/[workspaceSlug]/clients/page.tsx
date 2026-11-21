@@ -1,3 +1,4 @@
+import { canOpenCreation } from "@/features/creation/actions";
 import { getClients } from "@/server/services/clients.service";
 import { ClientForm } from "@/features/clients/components/ClientForm";
 import { Badge } from "@/components/ui/Badge";
@@ -16,6 +17,7 @@ import {
 
 type ClientsPageProps = {
   searchParams: Promise<{
+    create?: string;
     query?: string;
     status?: string;
   }>;
@@ -23,6 +25,7 @@ type ClientsPageProps = {
 
 export default async function ClientsPage({ searchParams }: ClientsPageProps) {
   const params = await searchParams;
+  const mayCreate = await canOpenCreation("client");
 
   const status =
     params.status === "ARCHIVED" || params.status === "ALL"
@@ -37,16 +40,17 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
 
   return (
     <main className="space-y-10">
-      <div>
+      <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
         <h1 className="text-3xl font-semibold tracking-tight text-core-text">
           Clients
         </h1>
         <p className="mt-1 text-sm text-core-text-secondary">
           Manage your agency clients and business relationships.
         </p>
+        </div>
+        {mayCreate && <ClientForm key={params.create || "closed"} initialOpen={!!params.create} />}
       </div>
-
-      <ClientForm />
       <section className="space-y-4">
         <div className="flex flex-col gap-4">
           <h2 className="text-lg font-semibold text-core-text">Client Records</h2>

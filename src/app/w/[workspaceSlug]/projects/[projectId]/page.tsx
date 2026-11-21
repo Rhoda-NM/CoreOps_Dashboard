@@ -1,10 +1,11 @@
+import { getProjectDeliveryCheck } from "@/server/services/delivery.service";
+import { can } from "@/server/authorization/permissions";
 import { getCurrentWorkspaceMembership } from "@/server/auth/get-current-workspace";
 import { ProjectAssignments } from "@/features/assignments/ProjectAssignments";
 import { taskDetailsAction } from "@/features/assignments/actions";
 import Link from "@/components/workspaces/WorkspaceLink";
 import { notFound } from "next/navigation";
 import {
-  ArrowLeft,
   CalendarDays,
   CheckSquare,
   Receipt,
@@ -17,7 +18,6 @@ import { getProjectById } from "@/server/services/projects.service";
 import { PageHeader } from "@/components/ui/shared/PageHeader";
 import { EmptyState } from "@/components/ui/shared/EmptyState";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { CreateTaskPanel } from "@/features/tasks/components/Create TaskPanel";
 import { BackButton } from "@/components/ui/shared/BakButtton";
@@ -36,10 +36,12 @@ import {
 
 type ProjectDetailPageProps = {
   params: Promise<{ projectId: string }>;
+  searchParams?: Promise<{ deliveryCheck?: string | string[] }>;
 };
 
 export default async function ProjectDetailPage({
   params,
+  searchParams,
 }: ProjectDetailPageProps) {
   const { projectId } = await params;
   const membership = await getCurrentWorkspaceMembership();
@@ -52,6 +54,10 @@ export default async function ProjectDetailPage({
   if (!project) {
     notFound();
   }
+
+  const deliveryAllowed = can(role, "projects:delivery-check");
+  const deliveryRequested = (await searchParams)?.deliveryCheck === "1";
+  const delivery = deliveryAllowed && deliveryRequested ? await getProjectDeliveryCheck(projectId) : null;
 
   const completedTasks = project.tasks.filter(
     (task) => task.status === "DONE"
@@ -142,6 +148,25 @@ export default async function ProjectDetailPage({
         </Card>
       </section>
 
+      {deliveryAllowed && <section aria-labelledby="delivery-check-heading" className="space-y-3 rounded-xl border border-core-border p-5">
+        <h2 id="delivery-check-heading" className="font-semibold">Delivery check</h2>
+        <p className="text-sm text-core-text-secondary">Checks active projects for delivery risks. These findings are not proven causes of delay. Dates are compared with the evaluation instant.</p>
+        <form method="get">
+          <button name="deliveryCheck" value="1" className="rounded-lg border border-core-border px-3 py-2 text-sm">{delivery ? "Run again" : "Run delivery check"}</button>
+        </form>
+        {delivery && <>
+          <p className="text-xs text-core-muted">Evaluated at <time dateTime={delivery.evaluatedAt}>{delivery.evaluatedAt}</time> (UTC)</p>
+          {delivery.findings.length === 0 ? <p className="text-sm">{delivery.projectStatus === "ACTIVE" ? "No delivery risks found by these three checks." : "No delivery risks reported: checks apply only to ACTIVE projects."}</p> :
+            <ul className="space-y-3 text-sm">
+              {delivery.findings.map(finding => <li key={`${finding.ruleId}:${finding.taskId ?? finding.projectId}`} className="border-t border-core-border pt-3">
+                <p>{finding.explanation}</p>
+                <a href={finding.href} className="text-core-accent underline">{finding.taskId ? `Task ${finding.taskId}` : `Project ${finding.projectId}`}</a>
+                <p className="text-xs text-core-text-secondary">Rule: {finding.ruleId} · Project: {finding.projectId} ({finding.projectStatus}){finding.taskStatus ? ` · Task status: ${finding.taskStatus}` : ""}{finding.dueDate ? ` · Due: ${finding.dueDate}` : ""}{finding.deadline ? ` · Project deadline: ${finding.deadline}` : ""}</p>
+              </li>)}
+            </ul>}
+        </>}
+      </section>}
+
       {role !== "STAFF" && <ProjectAssignments projectId={project.id} />}
       <section className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
@@ -176,7 +201,7 @@ export default async function ProjectDetailPage({
                     const overdue = isOverdue(task.dueDate, task.status);
 
                     return (
-                      <TableRow key={task.id} className={overdue ? "bg-red-500/5" : ""}>
+                      <TableRow id={`task-${encodeURIComponent(task.id)}`} key={task.id} className={overdue ? "bg-red-500/5" : ""}>
                         <TableCell className="font-medium text-core-text">
                           <div className="flex items-center gap-2">
                             {overdue && <AlertTriangle className="h-4 w-4 text-red-300" />}
