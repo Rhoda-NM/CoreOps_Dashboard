@@ -28,10 +28,15 @@ Module._load=function(name,parent,main){
   const html=renderToStaticMarkup(React.createElement(DashboardShell,{workspace:{id:'synthetic',name:'Sample business',slug:'synthetic'},user:{name:'Synthetic owner',email:'synthetic@example.test',role:'OWNER',imageUrl:null}},await Dashboard(),React.createElement(Card,{'data-testid':'form-card'},React.createElement(CardContent,null,React.createElement(Input,{id:'synthetic-field',label:'Synthetic field',placeholder:'Example'}),React.createElement(Input,{id:'synthetic-error',error:'Synthetic validation message'})))));
   const executablePath=fs.existsSync(chromium.executablePath())?chromium.executablePath():process.env.WORKFLOWCONNECT_TEST_CHROME;
   browser=await chromium.launch({headless:true,...(executablePath?{executablePath}:{})});const context=await browser.newContext();await context.route('**/*',r=>r.abort());const page=await context.newPage();
-  await page.setContent(`<style>${css}</style><div id="outside" class="bg-core-bg text-core-text">Unchanged legacy area</div>${html}`);
+  await page.setContent(`<style>${css}</style><div id="outside" class="bg-core-bg text-core-text">Unchanged legacy area</div><div id="theme-isolation" style="display:none"><div class="marketing">Marketing</div><div class="platform-shell">Platform</div><div class="auth-page">Authentication</div></div>${html}`);
   const color=(selector,prop)=>page.locator(selector).first().evaluate((el,p)=>getComputedStyle(el)[p],prop);
   assert.equal(await color('#outside','backgroundColor'),'rgb(14, 36, 37)');
   assert.equal(await color('#outside','color'),'rgb(244, 248, 245)');
+  assert.equal(await color('#theme-isolation .marketing','backgroundColor'),'rgb(247, 248, 245)');
+  assert.equal(await color('#theme-isolation .platform-shell','backgroundColor'),'rgb(245, 247, 248)');
+  assert.equal(await page.locator('#theme-isolation .auth-page').evaluate(el=>getComputedStyle(el).getPropertyValue('--focus-ring').trim()),'#147165');
+  assert.equal(await color('.workspace-sidebar','backgroundColor'),'rgb(255, 255, 255)');
+  assert.equal(await color('.workspace-sidebar .workspace-identity','backgroundColor'),'rgb(20, 61, 59)');
   assert.equal(await color('.workspace-theme','backgroundColor'),'rgb(247, 248, 245)');
   assert.equal(await color('[data-testid="form-card"]','backgroundColor'),'rgb(255, 255, 255)');
   assert.equal(await color('.workspace-theme h1','color'),'rgb(25, 43, 50)');

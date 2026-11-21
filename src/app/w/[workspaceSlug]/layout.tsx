@@ -10,7 +10,6 @@ import { commercialAccess } from "@/server/commercial/access";
 import { DashboardShell } from "@/components/ui/layout/DashboardShell";
 import { QuickAddProvider } from "@/features/quick-add/components/QuickAddProvider";
 import { QuickAddDialog } from "@/features/quick-add/components/QuickAddDialog";
-import { WorkspaceSwitcher } from "@/components/workspaces/WorkspaceSwitcher";
 import { getActiveMemberships } from "@/server/auth/get-current-workspace";
 import { getCurrentWorkspaceMembership } from "@/server/auth/get-current-workspace";
 
@@ -35,6 +34,7 @@ export default async function DashboardLayout({
     <div className="workspace-theme min-h-screen">
     <QuickAddProvider>
       <DashboardShell
+        workspaces={memberships.map(m => ({ slug: m.workspace.slug!, name: m.workspace.name }))}
         workspace={{
           id: membership.workspace.id,
           name: membership.workspace.name,
@@ -47,7 +47,6 @@ export default async function DashboardLayout({
           role: membership.role,
         }}
       >
-        {memberships.length > 1 && <WorkspaceSwitcher current={membership.workspace.slug!} workspaces={memberships.map(m => ({ slug: m.workspace.slug!, name: m.workspace.name }))} />}
         <div className="mb-4 flex flex-wrap gap-4 text-sm"><Link href={await workspaceNavigationPath("/subscription")}>Subscription</Link>{dataAccessEnabled() && membership.role === "OWNER" && <Link href={dataHref}>Export workspace data</Link>}{!access.write && <span>{access.lifecycle?.state === "ARCHIVED" ? "Archived · read-only. Renew your subscription to resume changes." : "Read-only · renew your subscription to resume changes."}</span>}{access.inGrace && <span>Your subscription is in its seven-day grace period.</span>}</div>
         {children}
       </DashboardShell>

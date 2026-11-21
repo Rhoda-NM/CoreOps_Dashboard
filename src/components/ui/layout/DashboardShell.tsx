@@ -9,6 +9,7 @@ type DashboardShellProps = {
     name: string;
     slug: string | null;
   };
+  workspaces?: { slug: string; name: string }[];
   user: {
     name: string | null;
     email: string;
@@ -20,17 +21,18 @@ type DashboardShellProps = {
 export function DashboardShell({
   children,
   workspace,
+  workspaces,
   user,
 }: DashboardShellProps) {
   return (
-    <div className="workspace-theme flex min-h-screen flex-col bg-core-bg text-core-text">
-      <div className="flex min-h-0 flex-1">
-        <Sidebar workspace={workspace} role={user.role} />
+    <div className="workspace-theme workspace-shell">
+      <div className="workspace-shell-row">
+        <Sidebar workspace={workspace} workspaces={workspaces} role={user.role} />
 
-        <div className="flex min-h-0 flex-1 flex-col">
-          <Header workspace={workspace} user={user} />
+        <div className="workspace-shell-main">
+          <Header workspace={workspace} workspaces={workspaces} user={user} />
 
-          <main className="mx-auto w-full max-w-7xl flex-1 px-5 py-6 lg:px-8 lg:py-8">
+          <main className="workspace-content">
             {children}
           </main>
         </div>

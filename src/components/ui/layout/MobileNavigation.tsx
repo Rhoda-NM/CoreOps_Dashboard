@@ -1,12 +1,65 @@
 "use client";
-import { useRef, useState } from "react";
+
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Menu, X } from "lucide-react";
-import Link from "@/components/workspaces/WorkspaceLink";
-import { usePathname } from "next/navigation";
-import { visibleDashboardNav } from "@/config/dashboard-nav";
-export function MobileNavigation({ role }: { role: string }) {
+import { WorkspaceNavigation, type WorkspaceIdentity, type WorkspaceOption } from "./WorkspaceNavigation";
+
+type Props = { workspace: WorkspaceIdentity; workspaces?: WorkspaceOption[]; role: string };
+export function MobileNavigation({ workspace, workspaces, role }: Props) {
   const [open, setOpen] = useState(false);
-  const button = useRef<HTMLButtonElement>(null);
-  const pathname = usePathname().replace(/^\/w\/[^/]+/, "");
-  return <div className="lg:hidden"><button ref={button} aria-expanded={open} aria-controls="workspace-mobile-navigation" aria-label={open ? "Close workspace navigation" : "Open workspace navigation"} type="button" onClick={() => setOpen(!open)} className="flex h-11 w-11 items-center justify-center rounded-lg border border-core-border">{open ? <X size={19}/> : <Menu size={19}/>}</button><nav id="workspace-mobile-navigation" aria-label="Workspace navigation" hidden={!open} onKeyDown={event => { if (event.key === "Escape") { setOpen(false); button.current?.focus(); } }} className="workspace-navigation absolute inset-x-0 top-full z-30 border-b border-core-border bg-core-surface p-4 shadow-xl">{visibleDashboardNav(role).map(item => <Link key={item.href} href={item.href} aria-current={pathname === item.href || pathname.startsWith(`${item.href}/`) ? "page" : undefined} onClick={() => setOpen(false)} className="flex min-h-11 items-center gap-3 rounded-lg px-4 py-3 text-sm hover:bg-core-card aria-[current=page]:bg-core-card"><item.icon aria-hidden="true" size={17}/>{item.title}</Link>)}</nav></div>;
+  const trigger = useRef<HTMLButtonElement>(null);
+  const dialog = useRef<HTMLDialogElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const close = useCallback(() => {
+    // Close synchronously before an existing Quick Add handler opens its overlay.
+    dialog.current?.close();
+    setOpen(false);
+    trigger.current?.focus({ preventScroll: true });
+  }, []);
+
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 1024px)");
+    const resized = () => { if (desktop.matches) close(); };
+    desktop.addEventListener("change", resized);
+    return () => desktop.removeEventListener("change", resized);
+  }, [close]);
+
+  useEffect(() => {
+    if (!open) return;
+    const modal = dialog.current;
+    if (!modal) return;
+    const overflow = document.body.style.overflow;
+    modal.showModal(); // Native top layer supplies inert background/focus containment.
+    document.body.style.overflow = "hidden";
+    closeButton.current?.focus();
+    return () => {
+      modal.close();
+      document.body.style.overflow = overflow;
+    };
+  }, [open]);
+
+  return <div className="workspace-mobile-navigation">
+    <button ref={trigger} type="button" className="workspace-menu-trigger" aria-label="Open workspace navigation" aria-expanded={open} aria-controls="workspace-mobile-navigation" onClick={() => { if (!window.matchMedia("(min-width: 1024px)").matches) setOpen(true); }}><Menu aria-hidden="true" size={20} /></button>
+    <dialog ref={dialog} id="workspace-mobile-navigation" aria-label="Workspace navigation menu" aria-modal="true" className="workspace-drawer" onCancel={event => { event.preventDefault(); close(); }} onClose={() => setOpen(false)} onClick={event => {
+      if (event.target !== event.currentTarget) return;
+      const box = event.currentTarget.getBoundingClientRect();
+      if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) close();
+    }} onKeyDown={event => {
+      // Native modality makes the page inert. Explicitly wrap Tab endpoints as
+      // well, so focus never drops to browser chrome/body between menu cycles.
+      if (event.key === "Tab" && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        const elements = Array.from(event.currentTarget.querySelectorAll<HTMLElement>("a[href], button, input, select, textarea, [tabindex]"))
+          .filter(element => element.tabIndex >= 0 && !element.matches(":disabled") && element.getClientRects().length > 0);
+        const first = elements[0], last = elements[elements.length - 1];
+        if (first && last && (event.shiftKey ? document.activeElement === first : document.activeElement === last)) {
+          event.preventDefault();
+          (event.shiftKey ? last : first).focus();
+        }
+      }
+      // Preserve the existing global shortcut without stacking Quick Add behind a modal.
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") close();
+    }}>
+      <WorkspaceNavigation workspace={workspace} workspaces={workspaces} role={role} label="Mobile workspace navigation" onNavigate={close} onQuickAdd={close} dismissControl={<button ref={closeButton} type="button" className="workspace-drawer-close" aria-label="Close workspace navigation" onClick={close}><X aria-hidden="true" size={20} /></button>} />
+    </dialog>
+  </div>;
 }
