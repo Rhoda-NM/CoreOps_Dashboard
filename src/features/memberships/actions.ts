@@ -2,7 +2,7 @@
 import { centralUrl } from "@/lib/routing/host-policy";
 import { workspaceContinuation } from "@/lib/routing/navigation";
 import { runtimeRoutingPolicy } from "@/server/routing/config";
-import { redirect } from "next/navigation";
+import { unstable_rethrow, redirect } from "next/navigation";
 import { revalidateWorkspacePath } from "@/server/auth/revalidate-workspace";
 import { acceptInvitation, changeMembership, createInvitation, removeMembership, revokeInvitation } from "@/server/services/memberships.service";
 import { prisma } from "@/server/db/prisma";
@@ -32,4 +32,16 @@ export async function acceptInvitationAction(token: string) {
   const workspaceId = await acceptInvitation(token);
   const workspace = await prisma.workspace.findUniqueOrThrow({ where: { id: workspaceId }, select: { slug: true } });
   redirect(workspaceContinuation(workspace.slug!));
+}
+
+// Friendly recoverable errors for the invitation page; the existing service is
+// still the only membership mutation and independently rechecks every condition.
+export async function acceptInvitationFormAction(token: string): Promise<import("./invitation-view").InvitationAcceptanceState> {
+  try { await acceptInvitationAction(token); }
+  catch (error) {
+    unstable_rethrow(error);
+    const { getInvitationView } = await import("@/server/services/invitation-view.service");
+    return { message: "The invitation could not be accepted. Review its current status below. If it is still available, try again or ask the workspace owner for help.", view: await getInvitationView(token) };
+  }
+  return { message: "Unable to continue. Please reload the invitation." };
 }

@@ -138,3 +138,11 @@ test('setup continuation preserves only the fixed verification mode and never re
  const post=await request('http://localhost:3000/platform/verify?setup=1',signedOut,{'next-action':'synthetic-action'},'POST');
  assert.equal(post.status,401);assert.equal(post.headers.get('location'),null);
 }));
+test('invitation introduction is public only for central reads; acceptance remains authenticated',()=>inMode('subdomain',async()=>{
+ const invitation='/invitations/'+'x'.repeat(43),anonymous=async()=>({userId:null});
+ const response=await request('https://app.workflowconnect.io'+invitation,anonymous,{'x-coreops-return-to':'https://evil.test'});assert.equal(response.status,200);assert.equal(response.headers.get('x-middleware-request-x-coreops-return-to'),invitation);
+ assert.equal((await request('https://app.workflowconnect.io'+invitation,anonymous,{},'HEAD')).status,200);
+ assert.equal((await request('https://app.workflowconnect.io'+invitation,anonymous,{},'POST')).status,401);
+ assert.equal((await request('https://workflowconnect.io'+invitation,anonymous)).status,404);
+ const tenant=await request('https://tenant-a.workflowconnect.io'+invitation,anonymous);assert.equal(tenant.status,307);assert.equal(tenant.headers.get('location'),'https://app.workflowconnect.io'+invitation);
+}));

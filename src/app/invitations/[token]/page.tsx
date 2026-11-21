@@ -1,7 +1,16 @@
-import { acceptInvitationAction } from "@/features/memberships/actions";
-import { getCurrentUser } from "@/server/auth/get-current-user";
+import { acceptInvitationFormAction } from "@/features/memberships/actions";
+import { InvitationCard } from "@/features/memberships/InvitationCard";
+import { getInvitationView } from "@/server/services/invitation-view.service";
+import { requireCentralHost } from "@/server/routing/request-context";
+import { centralUrl } from "@/lib/routing/host-policy";
+import { safeAuthReturn } from "@/lib/routing/navigation";
+
+export const dynamic = "force-dynamic";
 export default async function InvitationPage({ params }: { params: Promise<{ token: string }> }) {
-  await getCurrentUser();
+  const { policy } = await requireCentralHost();
   const { token } = await params;
-  return <main className="mx-auto max-w-xl space-y-4 p-8 text-core-text"><h1 className="text-2xl font-semibold">Join a workspace</h1><p>Accept using the account with the verified email address that received this invitation.</p><form action={acceptInvitationAction.bind(null, token)}><button className="rounded border p-3">Accept invitation</button></form></main>;
+  const view = await getInvitationView(token);
+  const intent = safeAuthReturn(`/invitations/${token}`);
+  const query = new URLSearchParams({ returnTo: intent });
+  return <div className="workspace-theme min-h-screen"><InvitationCard initialView={view} signInHref={centralUrl(policy, `/sign-in?${query}`)} signUpHref={centralUrl(policy, `/sign-up?${query}`)} acceptAction={acceptInvitationFormAction.bind(null, token)} /></div>;
 }

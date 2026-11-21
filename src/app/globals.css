@@ -293,3 +293,18 @@ button, a, input, select, textarea, summary { -webkit-tap-highlight-color: trans
   .workspace-theme .creation-content { flex: 1; }
   .workspace-theme .creation-footer button { flex: 1; }
 }
+
+/* Phase 4B private invitation surface; other auth/account themes are unchanged. */
+.workspace-theme .invitation-page { min-height: 100dvh; display: grid; align-content: start; justify-items: center; padding: 24px 16px; }
+.workspace-theme .invitation-card { width: 100%; max-width: 38rem; min-width: 0; padding: clamp(20px, 4vw, 32px); border: 1px solid var(--workspace-border); border-radius: 16px; background: var(--workspace-surface); overflow-wrap: anywhere; }
+.workspace-theme .invitation-details { display: grid; gap: 14px; margin-top: 24px; padding: 18px; border-radius: 10px; background: var(--workspace-surface-secondary); }
+.workspace-theme .invitation-details dt { font-size: 12px; color: var(--workspace-text-secondary); }
+.workspace-theme .invitation-details dd { margin-top: 3px; font-size: 14px; font-weight: 600; }
+.workspace-theme .invitation-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+.workspace-theme :is(.invitation-primary,.invitation-secondary) { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 10px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; text-align: center; }
+.workspace-theme .invitation-primary { background: var(--workspace-primary); color: white; }
+.workspace-theme .invitation-primary:hover { background: var(--workspace-primary-hover); }
+.workspace-theme .invitation-primary:disabled { opacity: .65; cursor: wait; }
+.workspace-theme .invitation-secondary { border: 1px solid var(--workspace-control-border); background: var(--workspace-surface); }
+.workspace-theme .invitation-card :is(button,a):focus-visible { outline: 3px solid var(--workspace-focus); outline-offset: 3px; }
+@media (min-width: 768px) { .workspace-theme .invitation-page { padding-top: 64px; } }

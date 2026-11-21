@@ -20,6 +20,9 @@ export function planRequest(policy: RoutingPolicy, input: { host: string | null;
   if (host.kind === "rejected") return deny;
   const path = input.pathname;
   const read = input.method === "GET" || input.method === "HEAD";
+  // Only the minimal invitation introduction is public. POST/actions still
+  // require Clerk and the authoritative verified-recipient acceptance service.
+  const invitationRead = read && /^\/invitations\/[^/]+$/.test(path);
   // Handler independently rejects deployed use and requires genuine Svix verification.
   if(path==="/api/notifications/resend/webhook"){
     if(input.method!=="POST"||(policy.mode==="subdomain"&&host.kind!=="app"))return deny;
@@ -49,7 +52,7 @@ export function planRequest(policy: RoutingPolicy, input: { host: string | null;
   const scopedPath = scoped ? scoped[2] || "/dashboard" : undefined;
   if (scopedPath && !section(scopedPath)) return deny;
   if (policy.mode === "path") {
-    return { action: "next", host, public: publicPages.has(path) || publicCentral(path) || webhook(path), internalPath: scoped ? internalWorkspacePath(scopedSlug!, scopedPath!) : path, workspaceSlug: scopedSlug };
+    return { action: "next", host, public: publicPages.has(path) || publicCentral(path) || invitationRead || webhook(path), internalPath: scoped ? internalWorkspacePath(scopedSlug!, scopedPath!) : path, workspaceSlug: scopedSlug };
   }
   if (host.kind === "marketing") {
     // Existing public Get access links can reach central authentication without
@@ -60,7 +63,7 @@ export function planRequest(policy: RoutingPolicy, input: { host: string | null;
   if (host.kind === "app") {
     if (scoped) return read ? { action: "redirect", host, public: false, workspaceSlug: scopedSlug, location: workspaceUrl(policy, scopedSlug!, `${scopedPath}${input.search ?? ""}`) } : deny;
     if (path === "/") return read ? { action: "redirect", host, public: false, location: centralUrl(policy, "/dashboard") } : deny;
-    if (centralPath(path) || webhook(path)) return { action: "next", host, public: publicCentral(path) || publicPages.has(path) || webhook(path), internalPath: path };
+    if (centralPath(path) || webhook(path)) return { action: "next", host, public: publicCentral(path) || publicPages.has(path) || invitationRead || webhook(path), internalPath: path };
     return deny;
   }
   if (host.kind !== "tenant-candidate") return deny;

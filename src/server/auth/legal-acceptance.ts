@@ -16,7 +16,11 @@ import { hasCurrentSyntheticLegalReceipt } from "../legal/acceptance";
 export async function requireCurrentLegalReceipt(userId: string) {
   if (stagingRequested()) {
     const { hasStagingAcknowledgment } = await import("../staging/acknowledgment");
-    if (!await hasStagingAcknowledgment(userId)) redirect("/account/staging-terms");
+    if (!await hasStagingAcknowledgment(userId)) {
+      const { policy, requestHeaders } = await requestRoutingContext();
+      const intent = safeAuthReturn(requestHeaders.get("x-coreops-return-to") ?? authReturnForPath(requestHeaders.get("x-coreops-path") ?? "/dashboard"));
+      redirect(centralUrl(policy, `/account/staging-terms?${new URLSearchParams({ returnTo: intent })}`));
+    }
     return;
   }
   if (pay1Enabled()) {
@@ -29,8 +33,9 @@ export async function requireCurrentLegalReceipt(userId: string) {
   if (process.env.COREOPS_LEGAL_CATALOG_REHEARSAL_ENABLED === "true") {
     requireLegalRehearsal();
     if (!await hasCurrentSyntheticLegalReceipt(userId)) {
-      const { policy } = await requestRoutingContext();
-      redirect(centralUrl(policy, "/account/legal/rehearsal"));
+      const { policy, requestHeaders } = await requestRoutingContext();
+      const intent = safeAuthReturn(requestHeaders.get("x-coreops-return-to") ?? authReturnForPath(requestHeaders.get("x-coreops-path") ?? "/dashboard"));
+      redirect(centralUrl(policy, `/account/legal/rehearsal?${new URLSearchParams({ returnTo: intent })}`));
     }
     return;
   }
